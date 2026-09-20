@@ -7,13 +7,14 @@
 // ============================================================
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyAidVqaMbr4byYZFpDc_tBCFga4MPYm7Tc",
-  authDomain: "hong-duc-it-management.firebaseapp.com",
-  projectId: "hong-duc-it-management",
-  storageBucket: "hong-duc-it-management.firebasestorage.app",
-  messagingSenderId: "275364368590",
-  appId: "1:275364368590:web:13d06d715fb77f0f41c09f",
-  measurementId: "G-5K4TYGJ1V8"
+  apiKey: "AIzaSyAIQDSC6zAVhIV6DiRpT_ElqmEOdM6df3M",
+  authDomain: "hong-duc-it-management-fe602.firebaseapp.com",
+  databaseURL: "https://hong-duc-it-management-fe602-default-rtdb.firebaseio.com",
+  projectId: "hong-duc-it-management-fe602",
+  storageBucket: "hong-duc-it-management-fe602.firebasestorage.app",
+  messagingSenderId: "422204071723",
+  appId: "1:422204071723:web:05e94d619b05d7bc69ef6e",
+  measurementId: "G-SHCGD6ZBKE"
 };
 
 // true = có thể xem giao diện demo khi chưa cấu hình Firebase.

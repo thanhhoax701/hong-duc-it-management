@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Worksheet ss:Name="UploadDonVi">
+  <Table>
+   <Row>
+    <Cell><Data ss:Type="String">Tên đơn vị</Data></Cell>
+    <Cell><Data ss:Type="String">Mã đơn vị</Data></Cell>
+    <Cell><Data ss:Type="String">Người quản lý</Data></Cell>
+    <Cell><Data ss:Type="String">Chức danh</Data></Cell>
+    <Cell><Data ss:Type="String">Mã nhân viên</Data></Cell>
+    <Cell><Data ss:Type="String">SĐT</Data></Cell>
+   </Row>
+  </Table>
+ </Worksheet>
+ <Worksheet ss:Name="HuongDan">
+  <Table>
+   <Row><Cell><Data ss:Type="String">Cột nguồn trong file của bạn</Data></Cell><Cell><Data ss:Type="String">Cột upload hệ thống</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Tên bộ phận hiện tại</Data></Cell><Cell><Data ss:Type="String">Tên đơn vị</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Mã</Data></Cell><Cell><Data ss:Type="String">Mã nhân viên</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Họ và tên</Data></Cell><Cell><Data ss:Type="String">Người quản lý</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Chức danh chi tiết</Data></Cell><Cell><Data ss:Type="String">Chức danh</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Điện thoại</Data></Cell><Cell><Data ss:Type="String">SĐT</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Mỗi dòng là một quản lý. Các dòng trùng Tên đơn vị sẽ được gom vào cùng một đơn vị.</Data></Cell></Row>
+  </Table>
+ </Worksheet>
+</Workbook>

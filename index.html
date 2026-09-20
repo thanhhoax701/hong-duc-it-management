@@ -29,7 +29,7 @@
   </div>
 
   <div id="appShell" class="app-shell hidden">
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" style="overflow-y:auto;overflow-x:hidden;padding-bottom:12px">
       <div class="brand">
         <div class="brand-mark">HD</div>
         <div><strong>HỒNG ĐỨC</strong><span>IT MANAGEMENT</span></div>
@@ -48,6 +48,7 @@
         <button class="nav-item" data-page="assets"><i>▤</i><span>Tài sản / CCDC</span></button>
         <button class="nav-item" data-page="maintenance"><i>↻</i><span>Bảo trì</span></button>
         <button class="nav-item" data-page="departments"><i>♙</i><span>Đơn vị / Phòng ban</span></button>
+        <button class="nav-item" data-page="employees"><i>♟</i><span>Nhân viên</span></button>
         <button class="nav-item" data-page="reports"><i>▥</i><span>Báo cáo</span></button>
       </nav>
 
@@ -58,6 +59,7 @@
           <div><b id="userName">IT Admin</b><small id="userEmail">Firebase</small></div>
           <span>⋮</span>
         </button>
+        <button class="logout-btn" id="logoutBtn" style="width:100%;border:0;border-top:1px solid #2a3b48;background:transparent;color:#aebfcb;padding:10px;text-align:left;font-size:10px">↪ <span>Đăng xuất</span></button>
       </div>
     </aside>
 
@@ -103,9 +105,31 @@
             </select>
           </label>
           <label class="span-2">Tiêu đề / vấn đề<input name="title" required placeholder="Ví dụ: NVR HĐ 4 KHO XE mất ghi hình"></label>
-          <label>Đơn vị / phòng ban<input name="department" list="departmentList" placeholder="Phòng Dịch vụ"></label>
-          <label>Người yêu cầu<input name="requester" placeholder="Nguyễn Văn A"></label>
-          <label>Người phụ trách<input name="assignee" placeholder="IT Admin"></label>
+          <label>Đơn vị / phòng ban
+            <select name="department">
+              <option value="">Chọn đơn vị</option>
+            </select>
+          </label>
+          <label>Người yêu cầu
+            <div class="employee-picker" data-field="requester">
+              <input type="hidden" name="requester" value="">
+              <button type="button" class="employee-value">Chọn người yêu cầu</button>
+              <div class="employee-menu hidden">
+                <div class="employee-search"><input type="text" placeholder="Tìm nhân viên..."></div>
+                <div class="employee-options"></div>
+              </div>
+            </div>
+          </label>
+          <label>Người phụ trách
+            <div class="employee-picker" data-field="assignee">
+              <input type="hidden" name="assignee" value="">
+              <button type="button" class="employee-value">Chọn người phụ trách</button>
+              <div class="employee-menu hidden">
+                <div class="employee-search"><input type="text" placeholder="Tìm nhân viên..."></div>
+                <div class="employee-options"></div>
+              </div>
+            </div>
+          </label>
           <label>Thiết bị / hệ thống<input name="systemName" placeholder="NVR / Firewall / BRAVO..."></label>
           <label class="span-2">Hiện trạng / mô tả<textarea name="description" rows="5" placeholder="Mô tả hiện trạng, lỗi, thời điểm xảy ra..."></textarea></label>
           <label class="span-2">Ghi chú xử lý<textarea name="resolution" rows="3" placeholder="Có thể cập nhật sau khi xử lý"></textarea></label>
@@ -153,10 +177,11 @@
         <button class="close-btn" data-close="departmentModal">×</button>
       </div>
       <form id="departmentForm">
+        <input type="hidden" name="id">
         <div class="form-grid">
           <label class="span-2">Tên đơn vị / phòng ban<input name="name" required placeholder="Phòng Kinh Doanh"></label>
-          <label>Mã đơn vị<input name="code" placeholder="KD"></label>
-          <label>Người phụ trách<input name="manager"></label>
+          <label>Mã đơn vị<input name="code" placeholder="PKD"></label>
+          <div class="span-2"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:9px;color:#4f606d">Danh sách người quản lý</b><button type="button" class="small-btn" id="addManagerBtn">＋ Thêm quản lý</button></div><div id="managerRows"></div><small style="display:block;margin-top:5px;color:#81909d;font-weight:400">Mỗi dòng là một người quản lý riêng, có mã nhân viên và SĐT riêng.</small></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-light" data-close="departmentModal">Hủy</button>
@@ -166,7 +191,25 @@
     </div>
   </div>
 
+  <input id="departmentUpload" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+  <input id="employeeUpload" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
   <datalist id="departmentList"></datalist>
-  <script type="module" src="js/app.js?v=2"></script>
+  <datalist id="employeeList"></datalist>
+  <datalist id="employeeRequesterList"></datalist>
+  <datalist id="employeeAssigneeList"></datalist>
+
+  <div class="modal-backdrop hidden" id="employeeModal">
+    <div class="modal modal-lg">
+      <div class="modal-header"><div><h2 id="employeeModalTitle">Chỉnh sửa nhân viên</h2><p>Cập nhật thông tin nhân viên.</p></div><button class="close-btn" data-close="employeeModal">×</button></div>
+      <form id="employeeForm"><input type="hidden" name="id"><div class="form-grid">
+        <label>Mã nhân viên<input name="employeeCode" required></label><label>Họ và tên<input name="name" required></label>
+        <label>Nơi làm việc<input name="workplace"></label><label>Tên bộ phận hiện tại<input name="department"></label>
+        <label>Chức danh<input name="title"></label><label>Chức danh chi tiết<input name="detailedTitle"></label>
+        <label>Điện thoại<input name="phone" type="tel"></label><label>Ngày sinh<input name="birthDate"></label>
+        <label>Giới tính<input name="gender"></label><label>Email<input name="email" type="email"></label>
+      </div><div class="modal-footer"><button type="button" class="btn btn-light" data-close="employeeModal">Hủy</button><button class="btn btn-primary">Lưu thay đổi</button></div></form>
+    </div>
+  </div>
+  <script type="module" src="js/app.js?v=3"></script>
 </body>
 </html>
