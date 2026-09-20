@@ -467,10 +467,10 @@ function renderEmployeePicker(fieldName, selectedValue = "") {
       menu.classList.toggle("hidden");
       if (!menu.classList.contains("hidden")) search.focus();
     };
-    search.oninput = e => renderOptions(e.target.value);
     document.addEventListener("click", (event) => { if (!picker.contains(event.target)) menu.classList.add("hidden"); });
     picker.dataset.bound = "1";
   }
+  search.oninput = e => renderOptions(e.target.value);
   renderOptions();
   setSelection(selectedValue || hiddenInput.value || "");
 }
