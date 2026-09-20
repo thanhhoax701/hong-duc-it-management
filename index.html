@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#d71920">
+  <title>Hồng Đức IT Management</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="toast" class="toast"></div>
+
+  <div id="loginScreen" class="login-screen hidden">
+    <div class="login-card">
+      <div class="brand large">
+        <div class="brand-mark">HD</div>
+        <div><strong>HỒNG ĐỨC</strong><span>IT MANAGEMENT</span></div>
+      </div>
+      <h1>Đăng nhập hệ thống</h1>
+      <p class="muted">Quản lý vấn đề CNTT, tài sản, bảo trì và vận hành hệ thống.</p>
+      <form id="loginForm">
+        <label>Email<input id="loginEmail" type="email" required placeholder="it@hongduchonda.com.vn"></label>
+        <label>Mật khẩu<input id="loginPassword" type="password" required placeholder="••••••••"></label>
+        <button class="btn btn-primary btn-block">Đăng nhập</button>
+      </form>
+      <div class="login-note">Tài khoản được quản lý bởi Firebase Authentication.</div>
+    </div>
+  </div>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">HD</div>
+        <div><strong>HỒNG ĐỨC</strong><span>IT MANAGEMENT</span></div>
+      </div>
+
+      <div class="workspace">
+        <span class="status-dot"></span>
+        <div><b>IT Operations</b><small>Hệ thống nội bộ</small></div>
+      </div>
+
+      <nav class="main-nav">
+        <button class="nav-item active" data-page="dashboard"><i>⌂</i><span>Tổng quan</span></button>
+        <button class="nav-item" data-page="tickets"><i>✓</i><span>Vấn đề / Ticket</span><em id="navOpenCount">0</em></button>
+        <button class="nav-item" data-page="hardware"><i>▣</i><span>Quy trình phần cứng</span></button>
+        <button class="nav-item" data-page="systems"><i>◈</i><span>Quản trị hệ thống</span></button>
+        <button class="nav-item" data-page="assets"><i>▤</i><span>Tài sản / CCDC</span></button>
+        <button class="nav-item" data-page="maintenance"><i>↻</i><span>Bảo trì</span></button>
+        <button class="nav-item" data-page="departments"><i>♙</i><span>Đơn vị / Phòng ban</span></button>
+        <button class="nav-item" data-page="reports"><i>▥</i><span>Báo cáo</span></button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-page="settings"><i>⚙</i><span>Cấu hình</span></button>
+        <button class="user-box" id="userMenu">
+          <div class="avatar" id="userAvatar">IT</div>
+          <div><b id="userName">IT Admin</b><small id="userEmail">Firebase</small></div>
+          <span>⋮</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobileMenu">☰</button>
+        <div>
+          <h1 id="pageTitle">Tổng quan</h1>
+          <p id="pageSubtitle">Theo dõi toàn bộ hoạt động CNTT của Hồng Đức</p>
+        </div>
+        <div class="top-actions">
+          <div class="search-box"><span>⌕</span><input id="globalSearch" placeholder="Tìm kiếm..."></div>
+          <button class="icon-btn" id="refreshBtn" title="Làm mới">↻</button>
+          <button class="btn btn-primary" id="createTicketBtn">＋ Tạo yêu cầu</button>
+        </div>
+      </header>
+
+      <div class="page" id="page"></div>
+    </main>
+  </div>
+
+  <!-- Ticket modal -->
+  <div class="modal-backdrop hidden" id="ticketModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div><h2 id="ticketModalTitle">Tạo yêu cầu mới</h2><p>Phiếu sẽ được lưu vào Firebase Firestore.</p></div>
+        <button class="close-btn" data-close="ticketModal">×</button>
+      </div>
+      <form id="ticketForm">
+        <input type="hidden" name="id">
+        <div class="form-grid">
+          <label>Loại quy trình
+            <select name="type" required>
+              <option value="hardware">Phần cứng</option>
+              <option value="system">Quản trị hệ thống</option>
+            </select>
+          </label>
+          <label>Ưu tiên
+            <select name="priority">
+              <option value="Cao">Cao</option>
+              <option value="Trung bình" selected>Trung bình</option>
+              <option value="Thấp">Thấp</option>
+            </select>
+          </label>
+          <label class="span-2">Tiêu đề / vấn đề<input name="title" required placeholder="Ví dụ: NVR HĐ 4 KHO XE mất ghi hình"></label>
+          <label>Đơn vị / phòng ban<input name="department" list="departmentList" placeholder="Phòng Dịch vụ"></label>
+          <label>Người yêu cầu<input name="requester" placeholder="Nguyễn Văn A"></label>
+          <label>Người phụ trách<input name="assignee" placeholder="IT Admin"></label>
+          <label>Thiết bị / hệ thống<input name="systemName" placeholder="NVR / Firewall / BRAVO..."></label>
+          <label class="span-2">Hiện trạng / mô tả<textarea name="description" rows="5" placeholder="Mô tả hiện trạng, lỗi, thời điểm xảy ra..."></textarea></label>
+          <label class="span-2">Ghi chú xử lý<textarea name="resolution" rows="3" placeholder="Có thể cập nhật sau khi xử lý"></textarea></label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-close="ticketModal">Hủy</button>
+          <button class="btn btn-primary">Lưu yêu cầu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Asset modal -->
+  <div class="modal-backdrop hidden" id="assetModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div><h2>Thêm tài sản / CCDC</h2><p>Quản lý thiết bị và tài sản CNTT.</p></div>
+        <button class="close-btn" data-close="assetModal">×</button>
+      </div>
+      <form id="assetForm">
+        <div class="form-grid">
+          <label>Mã tài sản<input name="code" required placeholder="TS-IT-0001"></label>
+          <label>Loại<select name="category"><option>Máy tính</option><option>Thiết bị mạng</option><option>Camera / NVR</option><option>Server</option><option>UPS</option><option>Khác</option></select></label>
+          <label class="span-2">Tên thiết bị<input name="name" required placeholder="Dell OptiPlex / Switch / NVR..."></label>
+          <label>Serial / MAC<input name="serial"></label>
+          <label>Vị trí<input name="location" placeholder="Phòng IT"></label>
+          <label>Đơn vị sử dụng<input name="department" list="departmentList"></label>
+          <label>Người sử dụng<input name="owner"></label>
+          <label>Tình trạng<select name="status"><option>Đang sử dụng</option><option>Dự phòng</option><option>Bảo trì</option><option>Hỏng</option><option>Thanh lý</option></select></label>
+          <label>Ngày mua<input type="date" name="purchaseDate"></label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-close="assetModal">Hủy</button>
+          <button class="btn btn-primary">Lưu tài sản</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Department modal -->
+  <div class="modal-backdrop hidden" id="departmentModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div><h2>Thêm phòng ban / đơn vị</h2></div>
+        <button class="close-btn" data-close="departmentModal">×</button>
+      </div>
+      <form id="departmentForm">
+        <div class="form-grid">
+          <label class="span-2">Tên đơn vị / phòng ban<input name="name" required placeholder="Phòng Kinh Doanh"></label>
+          <label>Mã đơn vị<input name="code" placeholder="KD"></label>
+          <label>Người phụ trách<input name="manager"></label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-close="departmentModal">Hủy</button>
+          <button class="btn btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <datalist id="departmentList"></datalist>
+  <script type="module" src="js/app.js?v=2"></script>
+</body>
+</html>
