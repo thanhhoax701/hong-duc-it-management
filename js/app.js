@@ -3,7 +3,7 @@ import { firebaseConfig, DEMO_MODE } from "./firebase-config.js";
 const FBASE = "https://www.gstatic.com/firebasejs/10.12.5";
 let firebaseReady = false, auth = null, db = null;
 let user = null;
-let state = { page: "dashboard", tickets: [], assets: [], departments: [], employees: [], maintenance: [], audit: [], search: "", employeePage: 1 };
+let state = { page: "dashboard", tickets: [], assets: [], departments: [], employees: [], maintenance: [], storeVisits: [], audit: [], search: "", employeePage: 1 };
 let unsubscribers = [];
 
 const hardwareSteps = [
@@ -88,9 +88,9 @@ function showApp() {
 
 function subscribeData(fs) {
   unsubscribers.forEach(fn => fn()); unsubscribers = [];
-  const collections = ["tickets", "assets", "departments", "employees", "maintenance", "audit"];
+  const collections = ["tickets", "assets", "departments", "employees", "maintenance", "storeVisits", "audit"];
   collections.forEach(name => {
-    const q = name === "employees" ? fs.collection(db, name) : fs.query(fs.collection(db, name), fs.orderBy("createdAt", "desc"));
+    const q = ["employees", "departments", "storeVisits"].includes(name) ? fs.collection(db, name) : fs.query(fs.collection(db, name), fs.orderBy("createdAt", "desc"));
     const un = fs.onSnapshot(q, snap => {
       state[name] = snap.docs.map(d => ({ id: d.id, ...d.data() })); updateDepartmentsDatalist(); updateEmployeesDatalist(); render();
     }, err => console.warn(name, err));
@@ -106,6 +106,7 @@ function render() {
     systems: ["Quản trị hệ thống", "Giám sát → Phân quyền → Tích hợp → Bảo trì → Sao lưu"],
     assets: ["Tài sản / CCDC", "Theo dõi thiết bị, vị trí, người sử dụng và tình trạng"],
     maintenance: ["Bảo trì", "Lập lịch và theo dõi bảo trì hệ thống / thiết bị"],
+    storeVisits: ["Lịch đi cửa hàng", "Theo dõi lịch xử lý tại các cửa hàng / đơn vị"],
     departments: ["Đơn vị / Phòng ban", "Quản lý đơn vị, người phụ trách và nhu cầu CNTT"],
     employees: ["Danh sách nhân viên", "Tra cứu và cập nhật thông tin nhân viên"],
     reports: ["Báo cáo", "KPI và tình hình xử lý vấn đề"],
@@ -114,7 +115,7 @@ function render() {
   const [t, sub] = pages[state.page] || pages.dashboard; $("#pageTitle").textContent = t; $("#pageSubtitle").textContent = sub;
   $$(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.page === state.page));
   $("#navOpenCount").textContent = state.tickets.filter(t => t.step < 5).length;
-  const map = { dashboard: dashboardPage, tickets: ticketsPage, hardware: hardwarePage, systems: systemsPage, assets: assetsPage, maintenance: maintenancePage, departments: departmentsPage, employees: employeesPage, reports: reportsPage, settings: settingsPage };
+  const map = { dashboard: dashboardPage, tickets: ticketsPage, hardware: hardwarePage, systems: systemsPage, assets: assetsPage, maintenance: maintenancePage, storeVisits: storeVisitsPage, departments: departmentsPage, employees: employeesPage, reports: reportsPage, settings: settingsPage };
   $("#page").innerHTML = map[state.page]();
   bindPage();
 }
@@ -183,6 +184,27 @@ function maintenancePage() {
  <div class="card" style="margin-top:15px">${rows.length ? ticketTable(rows.map(x => ({ ...x, id: x.id, title: x.title, department: x.department, type: "system", priority: x.priority || "Trung bình", status: x.status, step: 5, createdAtText: x.date }))) : `<div class="empty"><strong>Chưa có lịch bảo trì</strong>Hãy tạo lịch để theo dõi.</div>`}</div>`;
 }
 
+function storeVisitsPage() {
+  const query = normalizeEmployeeSearch(state.search);
+  const rows = [...state.storeVisits]
+    .filter(row => !query || `${row.visitDate || ""} ${row.visitTime || ""} ${row.content || ""} ${row.department || ""} ${row.performers || ""} ${row.status || ""} ${row.notes || ""}`.toLowerCase().includes(query))
+    .sort((a, b) => `${a.visitDate || ""} ${a.visitTime || ""}`.localeCompare(`${b.visitDate || ""} ${b.visitTime || ""}`));
+  return `<div class="page-title-row"><div><h2>Lịch đi cửa hàng</h2><p>${rows.length} lịch${query ? " phù hợp" : " đang theo dõi"}</p></div><button class="btn btn-primary" data-action="new-store-visit">＋ Thêm lịch</button></div>
+  <div class="card store-visit-card"><div class="table-wrap"><table class="store-visit-table"><thead><tr><th>Ngày</th><th>Giờ</th><th>Nội dung xử lý</th><th>Đơn vị</th><th>Người thực hiện</th><th>Trạng thái</th><th>Ghi chú</th><th></th></tr></thead><tbody>${rows.length ? rows.map(storeVisitRow).join("") : `<tr><td colspan="8"><div class="empty"><strong>Chưa có lịch đi cửa hàng</strong>Thêm lịch đầu tiên để theo dõi.</div></td></tr>`}</tbody></table></div></div>`;
+}
+
+function storeVisitRow(row) {
+  const performers = Array.isArray(row.performers) ? row.performers : String(row.performers || "").split(",").map(name => name.trim()).filter(Boolean);
+  const statusClass = row.status === "ĐÃ XỬ LÝ" ? "badge-green" : row.status === "ĐANG XỬ LÝ" ? "badge-blue" : row.status === "ĐÃ LÊN LỊCH" ? "badge-orange" : row.status === "CHẬM TIẾN ĐỘ" ? "badge-purple" : "badge-red";
+  return `<tr><td><b>${esc(formatVisitDate(row.visitDate))}</b></td><td>${esc(row.visitTime || "-")}</td><td><b>${esc(row.content || "-")}</b></td><td>${esc(row.department || "-")}</td><td>${performers.length ? performers.map(name => `<span class="person-chip">${esc(name)}</span>`).join("") : "-"}</td><td><span class="badge ${statusClass}">${esc(row.status || "CHƯA XỬ LÝ")}</span></td><td>${esc(row.notes || "-")}</td><td class="row-actions"><button class="small-btn" data-edit-store-visit="${esc(row.id)}">Sửa</button><button class="small-btn" data-delete-store-visit="${esc(row.id)}">Xóa</button></td></tr>`;
+}
+
+function formatVisitDate(value) {
+  if (!value) return "-";
+  const [year, month, day] = String(value).split("-");
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
 function departmentsPage() {
   const departmentOrder = ["BGD", "PKD", "PKT", "PNS", "PCSKH", ...Array.from({ length: 12 }, (_, i) => `HD${i + 1}`), "HDMT", "HDNCT", "HDVTA", "HDVTY", "HDCHAUTHANH", "HDLOTE", "HDST"];
   const normalizeDepartmentCode = value => String(value || "").toUpperCase().replace(/[ ._-]/g, "");
@@ -236,6 +258,10 @@ function settingsPage() {
 
 function bindPage() {
   $$('[data-edit-employee]').forEach(b => b.onclick = () => openEmployeeModal(state.employees.find(employee => employee.id === b.dataset.editEmployee)));
+  $$('[data-action="new-store-visit"]').forEach(b => b.onclick = () => openStoreVisitModal());
+  $$('[data-edit-store-visit]').forEach(b => b.onclick = () => openStoreVisitModal(state.storeVisits.find(row => row.id === b.dataset.editStoreVisit)));
+  $$('[data-delete-store-visit]').forEach(b => b.onclick = () => deleteStoreVisit(b.dataset.deleteStoreVisit));
+  $$('[data-action="new-maintenance"]').forEach(() => toast("Module lịch bảo trì chi tiết sẽ dùng collection maintenance.", "success"));
   $$('[data-delete-employee]').forEach(b => b.onclick = () => deleteEmployee(b.dataset.deleteEmployee));
   $$('[data-action="delete-all-employees"]').forEach(b => b.onclick = deleteAllEmployees);
   $$('[data-employee-page]').forEach(b => b.onclick = () => { const query = state.search.toLowerCase().trim(); const totalPages = Math.max(1, Math.ceil(state.employees.filter(employee => Object.values(employee).join(" ").toLowerCase().includes(query)).length / 50)); state.employeePage = Math.max(1, Math.min(b.dataset.employeePage === "next" ? state.employeePage + 1 : state.employeePage - 1, totalPages)); render() });
@@ -245,7 +271,13 @@ function bindPage() {
   $$("[data-action='new-department']").forEach(b => b.onclick = openDepartmentModal);
   $$("[data-action='new-maintenance']").forEach(() => toast("Module lịch bảo trì chi tiết sẽ dùng collection maintenance.", "success"));
   $$("[data-advance]").forEach(b => b.onclick = () => advanceTicket(b.dataset.advance));
-  $$("[data-view-ticket]").forEach(b => b.onclick = () => viewTicket(b.dataset.viewTicket));
+    $$("[data-view-ticket]").forEach(b => b.onclick = () => viewTicket(b.dataset.viewTicket));
+    $$("[data-delete-asset]").forEach(b => b.onclick = () => deleteAsset(b.dataset.deleteAsset));
+    $$("[data-edit-dept]").forEach(b => b.onclick = () => openDepartmentModal(state.departments.find(d => d.id === b.dataset.editDept)));
+    $$("[data-delete-dept]").forEach(b => b.onclick = () => deleteDepartment(b.dataset.deleteDept));
+    $$("tr[data-ticket]").forEach(r => r.onclick = () => viewTicket(r.dataset.ticket));
+    $$("[data-action='upload-departments']").forEach(b => b.onclick = () => $("#departmentUpload").click());
+    $$("[data-action='upload-employees']").forEach(b => b.onclick = () => $("#employeeUpload").click());
   $$("[data-delete-asset]").forEach(b => b.onclick = () => deleteAsset(b.dataset.deleteAsset));
   $$("[data-edit-dept]").forEach(b => b.onclick = () => openDepartmentModal(state.departments.find(d => d.id === b.dataset.editDept)));
   $$("[data-delete-dept]").forEach(b => b.onclick = () => deleteDepartment(b.dataset.deleteDept));
@@ -291,6 +323,26 @@ async function saveAsset(e) {
   e.preventDefault(); const data = Object.fromEntries(new FormData(e.target).entries()); data.createdAt = Date.now(); data.createdAtText = nowText();
   try { await addDoc("assets", data); closeModal("assetModal"); toast("Đã thêm tài sản", "success"); render() } catch (err) { toast(err.message, "error") }
 }
+async function saveStoreVisit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const id = form.elements.id.value;
+  const existing = id ? state.storeVisits.find(row => row.id === id) : null;
+  const data = {
+    visitDate: form.elements.visitDate.value,
+    visitTime: form.elements.visitTime.value,
+    content: form.elements.content.value.trim(),
+    department: form.elements.department.value.trim(),
+    performers: getSelectedVisitPerformers(),
+    status: form.elements.status.value,
+    notes: form.elements.notes.value.trim(),
+    createdAt: existing?.createdAt || Date.now(),
+    createdAtText: existing?.createdAtText || nowText(),
+    updatedAt: Date.now()
+  };
+  try { await (id ? updateDocRemote("storeVisits", id, data) : addDoc("storeVisits", data)); closeModal("storeVisitModal"); toast(id ? "Đã cập nhật lịch" : "Đã thêm lịch đi cửa hàng", "success"); render() } catch (err) { toast(err.message, "error") }
+}
+
 async function saveDepartment(e) {
   e.preventDefault(); const form = e.target; const id = form.elements.id.value; const data = { name: form.elements.name.value.trim(), code: form.elements.code.value.trim(), managers: [...form.querySelectorAll(".manager-row")].map(row => ({ name: row.querySelector("[data-field='name']").value.trim(), title: row.querySelector("[data-field='title']").value.trim(), employeeCode: row.querySelector("[data-field='employeeCode']").value.trim(), phone: row.querySelector("[data-field='phone']").value.trim() })).filter(manager => manager.name), updatedAt: Date.now(), updatedAtText: nowText() };
   try { if (id) await updateDocRemote("departments", id, data); else { data.createdAt = Date.now(); data.createdAtText = nowText(); await addDoc("departments", data) } closeModal("departmentModal"); toast(id ? "Đã cập nhật đơn vị" : "Đã thêm đơn vị", "success"); render() } catch (err) { toast(err.message, "error") }
@@ -344,6 +396,7 @@ async function advanceTicket(id) {
   try { await updateDocRemote("tickets", id, { step, status, updatedAt: Date.now(), updatedAtText: nowText() }); toast(`Đã chuyển ${t.id} sang bước ${step}/5`, "success"); render() } catch (e) { toast(e.message, "error") }
 }
 async function deleteAsset(id) { if (!confirm("Xóa tài sản này?")) return; try { await deleteDocRemote("assets", id); toast("Đã xóa tài sản", "success"); render() } catch (e) { toast(e.message, "error") } }
+async function deleteStoreVisit(id) { if (!confirm("Xóa lịch đi cửa hàng này?")) return; try { await deleteDocRemote("storeVisits", id); toast("Đã xóa lịch", "success"); render() } catch (e) { toast(e.message, "error") } }
 async function deleteDepartment(id) { if (!confirm("Xóa đơn vị này?")) return; try { await deleteDocRemote("departments", id); toast("Đã xóa đơn vị", "success"); render() } catch (e) { toast(e.message, "error") } }
 async function deleteEmployee(id) { if (!confirm("Xóa nhân viên này?")) return; try { await deleteDocRemote("employees", id); toast("Đã xóa nhân viên", "success"); render() } catch (e) { toast(e.message, "error") } }
 async function deleteAllEmployees() {
@@ -374,6 +427,24 @@ function openTicketModal(type = "hardware", ticket = null) {
   });
 }
 function openAssetModal() { $("#assetModal").classList.remove("hidden"); $("#assetForm").reset() }
+function openStoreVisitModal(row = null) {
+  const form = $("#storeVisitForm");
+  form.reset();
+  form.elements.id.value = row?.id || "";
+  form.elements.visitDate.value = row?.visitDate || new Date().toISOString().slice(0, 10);
+  form.elements.visitTime.value = row?.visitTime || "07:00";
+  form.elements.content.value = row?.content || "";
+  updateDepartmentsDatalist();
+  form.elements.department.value = row?.department || "";
+  renderDepartmentPicker(row?.department || "");
+  form.elements.status.value = row?.status || "CHƯA XỬ LÝ";
+  form.elements.notes.value = row?.notes || "";
+  const selected = Array.isArray(row?.performers) ? row.performers : String(row?.performers || "").split(",").map(name => name.trim()).filter(Boolean);
+  form.elements.performers.value = selected.join(", ");
+  renderVisitPerformersPicker(selected);
+  $("#storeVisitModalTitle").textContent = row ? "Chỉnh sửa lịch đi cửa hàng" : "Thêm lịch đi cửa hàng";
+  $("#storeVisitModal").classList.remove("hidden");
+}
 function openDepartmentModal(department = null) { const form = $("#departmentForm"); $("#departmentModal").classList.remove("hidden"); form.reset(); form.elements.id.value = department?.id || ""; form.elements.name.value = department?.name || ""; form.elements.code.value = department?.code || ""; $("#departmentModal h2").textContent = department ? "Chỉnh sửa phòng ban / đơn vị" : "Thêm phòng ban / đơn vị"; setManagerRows(department?.managers?.length ? department.managers : department?.manager ? [{ name: department.manager, title: department.title, employeeCode: department.employeeCode, phone: department.phone }] : []) }
 function closeModal(id) { $("#" + id)?.classList.add("hidden") }
 function viewTicket(id) {
@@ -395,6 +466,8 @@ function meta(a, b) { return `<div class="meta-box"><small>${esc(a)}</small><b>$
 
 function updateDepartmentsDatalist() {
   const list = $("#departmentList"); if (list) list.innerHTML = state.departments.map(d => `<option value="${esc(d.name)}">`).join("");
+  const departmentPicker = $("#storeVisitForm .department-picker");
+  if (departmentPicker) renderDepartmentPicker(departmentPicker.querySelector("input[type='hidden']").value || "");
   const ticketDepartmentField = $("#ticketForm select[name='department']");
   if (ticketDepartmentField) {
     const currentValue = ticketDepartmentField.value || "";
@@ -402,6 +475,98 @@ function updateDepartmentsDatalist() {
     ticketDepartmentField.innerHTML = `<option value="">Chọn đơn vị</option>${options}`;
     ticketDepartmentField.value = currentValue;
   }
+}
+
+function renderDepartmentPicker(selectedValue = "") {
+  const picker = $("#storeVisitForm .department-picker");
+  if (!picker) return;
+  const hiddenInput = picker.querySelector("input[type='hidden']");
+  const button = picker.querySelector(".department-value");
+  const menu = picker.querySelector(".department-menu");
+  const search = picker.querySelector(".department-search input");
+  const optionWrap = picker.querySelector(".department-options");
+  const departments = state.departments;
+  const normalized = value => normalizeEmployeeSearch(value);
+  const renderOptions = (term = "") => {
+    const query = normalized(term);
+    const filtered = departments.filter(department => normalized(`${department.name || ""} ${department.code || ""}`).includes(query));
+    optionWrap.innerHTML = filtered.length ? filtered.map(department => `<button type="button" class="department-option ${selectedValue === department.name ? "selected" : ""}" data-name="${esc(department.name)}"><span class="department-option-name">${esc(department.name)}</span><span class="department-option-meta">${esc(department.code || "Chưa có mã đơn vị")}</span></button>`).join("") : `<div class="department-empty">Không tìm thấy đơn vị</div>`;
+    optionWrap.querySelectorAll(".department-option").forEach(option => {
+      option.onclick = () => {
+        selectedValue = option.dataset.name;
+        hiddenInput.value = selectedValue;
+        button.textContent = selectedValue;
+        button.classList.add("has-value");
+        menu.classList.add("hidden");
+        search.value = "";
+      };
+    });
+  };
+  hiddenInput.value = selectedValue || hiddenInput.value || "";
+  button.textContent = hiddenInput.value || "Chọn đơn vị / cửa hàng";
+  button.classList.toggle("has-value", Boolean(hiddenInput.value));
+  if (!picker.dataset.bound) {
+    button.onclick = event => {
+      event.stopPropagation();
+      document.querySelectorAll(".employee-menu, .department-menu").forEach(element => element.classList.add("hidden"));
+      menu.classList.toggle("hidden");
+      if (!menu.classList.contains("hidden")) search.focus();
+    };
+    document.addEventListener("click", event => { if (!picker.contains(event.target)) menu.classList.add("hidden"); });
+    picker.dataset.bound = "1";
+  }
+  search.oninput = event => renderOptions(event.target.value);
+  renderOptions();
+}
+
+function getSelectedVisitPerformers() {
+  return [...document.querySelectorAll("#storeVisitForm .visit-performer-option.selected")].map(option => option.dataset.name);
+}
+
+function renderVisitPerformersPicker(selectedValues = []) {
+  const picker = $("#storeVisitForm .visit-performer-picker");
+  if (!picker) return;
+  const hiddenInput = picker.querySelector("input[type='hidden']");
+  const button = picker.querySelector(".visit-performer-value");
+  const menu = picker.querySelector(".visit-performer-menu");
+  const search = picker.querySelector(".visit-performer-search input");
+  const optionWrap = picker.querySelector(".visit-performer-options");
+  const selected = new Set(selectedValues.length ? selectedValues : hiddenInput.value.split(",").map(name => name.trim()).filter(Boolean));
+  const updateValue = () => {
+    const names = [...selected];
+    hiddenInput.value = names.join(", ");
+    button.textContent = names.length ? `${names.slice(0, 2).join(", ")}${names.length > 2 ? ` +${names.length - 2}` : ""}` : "Chọn người thực hiện";
+    button.classList.toggle("has-value", names.length > 0);
+  };
+  const renderOptions = (term = "") => {
+    const query = normalizeEmployeeSearch(term);
+    const filtered = getEmployeeOptions().filter(employee => employeeSearchText(employee).includes(query));
+    optionWrap.innerHTML = filtered.length ? filtered.map(employee => {
+      const code = employee.employeeCode || employee.code || employee.maNV || "N/A";
+      return `<button type="button" class="visit-performer-option ${selected.has(employee.name) ? "selected" : ""}" data-name="${esc(employee.name)}"><span class="visit-performer-option-name">${esc(employee.name)}</span><span class="visit-performer-option-meta">${esc(employee.title || "Chưa cập nhật")} • ${esc(code)}</span><span class="visit-performer-check">✓</span></button>`;
+    }).join("") : `<div class="department-empty">Không tìm thấy nhân viên</div>`;
+    optionWrap.querySelectorAll(".visit-performer-option").forEach(option => {
+      option.onclick = () => {
+        const name = option.dataset.name;
+        if (selected.has(name)) selected.delete(name); else selected.add(name);
+        option.classList.toggle("selected", selected.has(name));
+        updateValue();
+      };
+    });
+  };
+  if (!picker.dataset.bound) {
+    button.onclick = event => {
+      event.stopPropagation();
+      document.querySelectorAll(".employee-menu, .department-menu, .visit-performer-menu").forEach(element => element.classList.add("hidden"));
+      menu.classList.toggle("hidden");
+      if (!menu.classList.contains("hidden")) search.focus();
+    };
+    document.addEventListener("click", event => { if (!picker.contains(event.target)) menu.classList.add("hidden"); });
+    picker.dataset.bound = "1";
+  }
+  search.oninput = event => renderOptions(event.target.value);
+  updateValue();
+  renderOptions(search.value);
 }
 
 function buildEmployeeLabel(employee) {
@@ -484,6 +649,8 @@ function updateEmployeesDatalist() {
   const assigneePicker = $("#ticketForm .employee-picker[data-field='assignee']");
   if (requesterPicker) { renderEmployeePicker("requester", requesterPicker.querySelector("input").value || ""); }
   if (assigneePicker) { renderEmployeePicker("assignee", assigneePicker.querySelector("input").value || ""); }
+  const visitPicker = $("#storeVisitForm .visit-performer-picker");
+  if (visitPicker) { renderVisitPerformersPicker(visitPicker.querySelector("input[type='hidden']").value.split(",").map(name => name.trim()).filter(Boolean)); }
 }
 
 function toast(msg, type = "success") { const x = $("#toast"); x.textContent = msg; x.className = `toast show ${type}`; clearTimeout(window.__toast); window.__toast = setTimeout(() => x.className = "toast", 2800) }
@@ -517,6 +684,7 @@ async function logout() {
 $("#loginForm").onsubmit = login;
 $("#ticketForm").onsubmit = saveTicket;
 $("#assetForm").onsubmit = saveAsset;
+$("#storeVisitForm").onsubmit = saveStoreVisit;
 $("#departmentForm").onsubmit = saveDepartment;
 $("#employeeForm").onsubmit = saveEmployee;
 $("#addManagerBtn").onclick = () => addManagerRow();

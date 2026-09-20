@@ -47,6 +47,7 @@
         <button class="nav-item" data-page="systems"><i>◈</i><span>Quản trị hệ thống</span></button>
         <button class="nav-item" data-page="assets"><i>▤</i><span>Tài sản / CCDC</span></button>
         <button class="nav-item" data-page="maintenance"><i>↻</i><span>Bảo trì</span></button>
+        <button class="nav-item" data-page="storeVisits"><i>▦</i><span>Lịch đi cửa hàng</span></button>
         <button class="nav-item" data-page="departments"><i>♙</i><span>Đơn vị / Phòng ban</span></button>
         <button class="nav-item" data-page="employees"><i>♟</i><span>Nhân viên</span></button>
         <button class="nav-item" data-page="reports"><i>▥</i><span>Báo cáo</span></button>
@@ -79,6 +80,54 @@
 
       <div class="page" id="page"></div>
     </main>
+  </div>
+
+  <!-- Store visit schedule modal -->
+  <div class="modal-backdrop hidden" id="storeVisitModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div><h2 id="storeVisitModalTitle">Thêm lịch đi cửa hàng</h2><p>Theo dõi nội dung, đơn vị và người thực hiện.</p></div>
+        <button class="close-btn" data-close="storeVisitModal">×</button>
+      </div>
+      <form id="storeVisitForm">
+        <input type="hidden" name="id">
+        <div class="form-grid">
+          <label>Ngày<input type="date" name="visitDate" required></label>
+          <label>Giờ<input type="time" name="visitTime" required></label>
+          <label class="span-2">Nội dung xử lý<textarea name="content" rows="3" required placeholder="Ví dụ: Xử lý Camera bị ngoại tuyến"></textarea></label>
+          <label>Đơn vị / cửa hàng
+            <div class="department-picker">
+              <input type="hidden" name="department" value="">
+              <button type="button" class="department-value">Chọn đơn vị / cửa hàng</button>
+              <div class="department-menu hidden">
+                <div class="department-search"><input type="text" placeholder="Tìm tên hoặc mã đơn vị..."></div>
+                <div class="department-options"></div>
+              </div>
+            </div>
+          </label>
+          <div class="form-field">
+            <label for="visitPerformers">Người thực hiện</label>
+            <div class="visit-performer-picker">
+              <input type="hidden" name="performers" value="">
+              <button type="button" class="visit-performer-value">Chọn người thực hiện</button>
+              <div class="visit-performer-menu hidden">
+                <div class="visit-performer-search"><input id="visitPerformers" type="text" placeholder="Tìm tên hoặc mã nhân viên..."></div>
+                <div class="visit-performer-options"></div>
+              </div>
+            </div>
+            <small class="field-hint">Có thể chọn nhiều người trong cùng một danh sách.</small>
+          </div>
+          <label>Trạng thái
+            <select name="status"><option>CHƯA XỬ LÝ</option><option>ĐANG XỬ LÝ</option><option>CHẬM TIẾN ĐỘ</option><option>ĐÃ LÊN LỊCH</option><option>ĐÃ XỬ LÝ</option></select>
+          </label>
+          <label class="span-2">Ghi chú<textarea name="notes" rows="2" placeholder="Ghi chú thêm"></textarea></label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-close="storeVisitModal">Hủy</button>
+          <button class="btn btn-primary">Lưu lịch</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Ticket modal -->
