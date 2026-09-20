@@ -196,7 +196,7 @@ function storeVisitsPage() {
 function storeVisitRow(row) {
   const performers = Array.isArray(row.performers) ? row.performers : String(row.performers || "").split(",").map(name => name.trim()).filter(Boolean);
   const statusClass = row.status === "ĐÃ XỬ LÝ" ? "badge-green" : row.status === "ĐANG XỬ LÝ" ? "badge-blue" : row.status === "ĐÃ LÊN LỊCH" ? "badge-orange" : row.status === "CHẬM TIẾN ĐỘ" ? "badge-purple" : "badge-red";
-  return `<tr><td><b>${esc(formatVisitDate(row.visitDate))}</b></td><td>${esc(row.visitTime || "-")}</td><td><b>${esc(row.content || "-")}</b></td><td>${esc(row.department || "-")}</td><td>${performers.length ? performers.map(name => `<span class="person-chip">${esc(name)}</span>`).join("") : "-"}</td><td><span class="badge ${statusClass}">${esc(row.status || "CHƯA XỬ LÝ")}</span></td><td>${esc(row.notes || "-")}</td><td class="row-actions"><button class="small-btn" data-edit-store-visit="${esc(row.id)}">Sửa</button><button class="small-btn" data-delete-store-visit="${esc(row.id)}">Xóa</button></td></tr>`;
+  return `<tr><td><b>${esc(formatVisitDate(row.visitDate))}</b></td><td>${esc(row.visitTime || "-")}</td><td><b>${esc(row.content || "-")}</b></td><td>${esc(row.department || "-")}</td><td>${performers.length ? performers.map(name => `<span class="person-chip">${esc(name)}</span>`).join("") : "-"}</td><td><span class="badge ${statusClass}">${esc(row.status || "CHƯA XỬ LÝ")}</span></td><td>${esc(row.notes || "-")}</td><td class="row-actions"><button class="small-btn" data-duplicate-store-visit="${esc(row.id)}">Nhân bản</button><button class="small-btn" data-edit-store-visit="${esc(row.id)}">Sửa</button><button class="small-btn" data-delete-store-visit="${esc(row.id)}">Xóa</button></td></tr>`;
 }
 
 function formatVisitDate(value) {
@@ -260,6 +260,7 @@ function bindPage() {
   $$('[data-edit-employee]').forEach(b => b.onclick = () => openEmployeeModal(state.employees.find(employee => employee.id === b.dataset.editEmployee)));
   $$('[data-action="new-store-visit"]').forEach(b => b.onclick = () => openStoreVisitModal());
   $$('[data-edit-store-visit]').forEach(b => b.onclick = () => openStoreVisitModal(state.storeVisits.find(row => row.id === b.dataset.editStoreVisit)));
+  $$('[data-duplicate-store-visit]').forEach(b => b.onclick = () => openStoreVisitModal(state.storeVisits.find(row => row.id === b.dataset.duplicateStoreVisit), true));
   $$('[data-delete-store-visit]').forEach(b => b.onclick = () => deleteStoreVisit(b.dataset.deleteStoreVisit));
   $$('[data-action="new-maintenance"]').forEach(() => toast("Module lịch bảo trì chi tiết sẽ dùng collection maintenance.", "success"));
   $$('[data-delete-employee]').forEach(b => b.onclick = () => deleteEmployee(b.dataset.deleteEmployee));
@@ -427,10 +428,10 @@ function openTicketModal(type = "hardware", ticket = null) {
   });
 }
 function openAssetModal() { $("#assetModal").classList.remove("hidden"); $("#assetForm").reset() }
-function openStoreVisitModal(row = null) {
+function openStoreVisitModal(row = null, duplicate = false) {
   const form = $("#storeVisitForm");
   form.reset();
-  form.elements.id.value = row?.id || "";
+  form.elements.id.value = duplicate ? "" : row?.id || "";
   form.elements.visitDate.value = row?.visitDate || new Date().toISOString().slice(0, 10);
   form.elements.visitTime.value = row?.visitTime || "07:00";
   form.elements.content.value = row?.content || "";
@@ -442,7 +443,7 @@ function openStoreVisitModal(row = null) {
   const selected = Array.isArray(row?.performers) ? row.performers : String(row?.performers || "").split(",").map(name => name.trim()).filter(Boolean);
   form.elements.performers.value = selected.join(", ");
   renderVisitPerformersPicker(selected);
-  $("#storeVisitModalTitle").textContent = row ? "Chỉnh sửa lịch đi cửa hàng" : "Thêm lịch đi cửa hàng";
+  $("#storeVisitModalTitle").textContent = duplicate ? "Nhân bản lịch đi cửa hàng" : row ? "Chỉnh sửa lịch đi cửa hàng" : "Thêm lịch đi cửa hàng";
   $("#storeVisitModal").classList.remove("hidden");
 }
 function openDepartmentModal(department = null) { const form = $("#departmentForm"); $("#departmentModal").classList.remove("hidden"); form.reset(); form.elements.id.value = department?.id || ""; form.elements.name.value = department?.name || ""; form.elements.code.value = department?.code || ""; $("#departmentModal h2").textContent = department ? "Chỉnh sửa phòng ban / đơn vị" : "Thêm phòng ban / đơn vị"; setManagerRows(department?.managers?.length ? department.managers : department?.manager ? [{ name: department.manager, title: department.title, employeeCode: department.employeeCode, phone: department.phone }] : []) }
@@ -520,7 +521,8 @@ function renderDepartmentPicker(selectedValue = "") {
 }
 
 function getSelectedVisitPerformers() {
-  return [...document.querySelectorAll("#storeVisitForm .visit-performer-option.selected")].map(option => option.dataset.name);
+  const value = $("#storeVisitForm .visit-performer-picker input[type='hidden']")?.value || "";
+  return value.split(",").map(name => name.trim()).filter(Boolean);
 }
 
 function renderVisitPerformersPicker(selectedValues = []) {
