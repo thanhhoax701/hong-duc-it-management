@@ -173,7 +173,7 @@ function systemsPage() { return `<div class="card" style="margin-bottom:16px"><d
 function assetsPage() {
   return `<div class="page-title-row"><div><h2>Tài sản / CCDC</h2><p>${state.assets.length} tài sản đang quản lý</p></div><button class="btn btn-primary" data-action="new-asset">＋ Thêm tài sản</button></div>
  <div class="stats"><div class="stat-card"><span class="icon">▤</span><div class="label">Tổng tài sản</div><div class="value">${state.assets.length}</div></div><div class="stat-card"><span class="icon">✓</span><div class="label">Đang sử dụng</div><div class="value">${state.assets.filter(a => a.status === "Đang sử dụng").length}</div></div><div class="stat-card"><span class="icon">↻</span><div class="label">Bảo trì</div><div class="value">${state.assets.filter(a => a.status === "Bảo trì").length}</div></div><div class="stat-card"><span class="icon">!</span><div class="label">Hỏng</div><div class="value">${state.assets.filter(a => a.status === "Hỏng").length}</div></div></div>
- <div class="card">${state.assets.length ? `<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Tài sản</th><th>Loại</th><th>Serial</th><th>Vị trí</th><th>Đơn vị</th><th>Tình trạng</th><th></th></tr></thead><tbody>${state.assets.map(a => `<tr><td><b>${esc(a.code)}</b></td><td><b>${esc(a.name)}</b><small>${esc(a.owner || "")}</small></td><td>${esc(a.category)}</td><td>${esc(a.serial || "-")}</td><td>${esc(a.location || "-")}</td><td>${esc(a.department || "-")}</td><td>${assetStatus(a.status)}</td><td><button class="small-btn" data-delete-asset="${esc(a.id)}">Xóa</button></td></tr>`).join("")}</tbody></table></div>` : `<div class="empty"><strong>Chưa có tài sản</strong>Thêm thiết bị CNTT đầu tiên.</div>`}</div>`;
+ <div class="card">${state.assets.length ? `<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Tài sản</th><th>Loại</th><th>Serial</th><th>Bộ phận sử dụng</th><th>Đơn vị / Phòng ban</th><th>Tình trạng</th><th></th></tr></thead><tbody>${state.assets.map(a => `<tr><td><b>${esc(a.code)}</b></td><td><b>${esc(a.name)}</b><small>${esc(a.owner || "")}</small></td><td>${esc(a.category)}</td><td>${esc(a.serial || "-")}</td><td>${esc(a.location || "-")}</td><td>${esc(a.department || "-")}</td><td>${assetStatus(a.status)}</td><td class="row-actions"><button class="small-btn" data-duplicate-asset="${esc(a.id)}">Nhân bản</button><button class="small-btn" data-edit-asset="${esc(a.id)}">Sửa</button><button class="small-btn" data-delete-asset="${esc(a.id)}">Xóa</button></td></tr>`).join("")}</tbody></table></div>` : `<div class="empty"><strong>Chưa có tài sản</strong>Thêm thiết bị CNTT đầu tiên.</div>`}</div>`;
 }
 function assetStatus(s) { return `<span class="badge ${s === "Đang sử dụng" ? "badge-green" : s === "Hỏng" ? "badge-red" : s === "Bảo trì" ? "badge-orange" : "badge-gray"}">${esc(s)}</span>` }
 
@@ -258,6 +258,8 @@ function settingsPage() {
 
 function bindPage() {
   $$('[data-edit-employee]').forEach(b => b.onclick = () => openEmployeeModal(state.employees.find(employee => employee.id === b.dataset.editEmployee)));
+  $$('[data-edit-asset]').forEach(b => b.onclick = () => openAssetModal(state.assets.find(asset => asset.id === b.dataset.editAsset)));
+  $$('[data-duplicate-asset]').forEach(b => b.onclick = () => openAssetModal(state.assets.find(asset => asset.id === b.dataset.duplicateAsset), true));
   $$('[data-action="new-store-visit"]').forEach(b => b.onclick = () => openStoreVisitModal());
   $$('[data-edit-store-visit]').forEach(b => b.onclick = () => openStoreVisitModal(state.storeVisits.find(row => row.id === b.dataset.editStoreVisit)));
   $$('[data-duplicate-store-visit]').forEach(b => b.onclick = () => openStoreVisitModal(state.storeVisits.find(row => row.id === b.dataset.duplicateStoreVisit), true));
@@ -321,8 +323,10 @@ async function saveTicket(e) {
   try { await (edit ? updateDocRemote("tickets", edit, data) : addDoc("tickets", data)); closeModal("ticketModal"); toast(edit ? "Đã cập nhật phiếu" : "Đã tạo yêu cầu thành công", "success"); render() } catch (err) { toast(err.message, "error") }
 }
 async function saveAsset(e) {
-  e.preventDefault(); const data = Object.fromEntries(new FormData(e.target).entries()); data.createdAt = Date.now(); data.createdAtText = nowText();
-  try { await addDoc("assets", data); closeModal("assetModal"); toast("Đã thêm tài sản", "success"); render() } catch (err) { toast(err.message, "error") }
+  e.preventDefault(); const form = e.target; const data = Object.fromEntries(new FormData(form).entries()); const id = data.id; delete data.id;
+  const existing = id ? state.assets.find(asset => asset.id === id) : null;
+  data.createdAt = existing?.createdAt || Date.now(); data.createdAtText = existing?.createdAtText || nowText(); data.updatedAt = Date.now();
+  try { await (id ? updateDocRemote("assets", id, data) : addDoc("assets", data)); closeModal("assetModal"); toast(id ? "Đã cập nhật tài sản" : "Đã thêm tài sản", "success"); render() } catch (err) { toast(err.message, "error") }
 }
 async function saveStoreVisit(e) {
   e.preventDefault();
@@ -427,7 +431,19 @@ function openTicketModal(type = "hardware", ticket = null) {
     renderEmployeePicker(fieldName, selectedName);
   });
 }
-function openAssetModal() { $("#assetModal").classList.remove("hidden"); $("#assetForm").reset() }
+function openAssetModal(asset = null, duplicate = false) {
+  const form = $("#assetForm");
+  form.reset();
+  form.elements.id.value = duplicate ? "" : asset?.id || "";
+  ["code", "category", "name", "serial", "location", "status", "purchaseDate"].forEach(field => { if (form.elements[field]) form.elements[field].value = asset?.[field] || ""; });
+  const ownerInput = form.querySelector(".employee-picker[data-field='assetOwner'] input[type='hidden']");
+  ownerInput.value = asset?.owner || "";
+  renderEmployeePicker("assetOwner", asset?.owner || "", "#assetForm");
+  const departmentPicker = form.querySelector(".asset-picker[data-picker-type='department']");
+  if (departmentPicker) { departmentPicker.querySelector("input[type='hidden']").value = asset?.department || ""; renderAssetPicker(departmentPicker, asset?.department || ""); }
+  $("#assetModal h2").textContent = duplicate ? "Nhân bản tài sản / CCDC" : asset ? "Chỉnh sửa tài sản / CCDC" : "Thêm tài sản / CCDC";
+  $("#assetModal").classList.remove("hidden");
+}
 function openStoreVisitModal(row = null, duplicate = false) {
   const form = $("#storeVisitForm");
   form.reset();
@@ -467,6 +483,8 @@ function meta(a, b) { return `<div class="meta-box"><small>${esc(a)}</small><b>$
 
 function updateDepartmentsDatalist() {
   const list = $("#departmentList"); if (list) list.innerHTML = state.departments.map(d => `<option value="${esc(d.name)}">`).join("");
+  const assetDepartmentPicker = $("#assetForm .asset-picker[data-picker-type='department']");
+  if (assetDepartmentPicker) renderAssetPicker(assetDepartmentPicker, assetDepartmentPicker.querySelector("input[type='hidden']").value || "");
   const departmentPicker = $("#storeVisitForm .department-picker");
   if (departmentPicker) renderDepartmentPicker(departmentPicker.querySelector("input[type='hidden']").value || "");
   const ticketDepartmentField = $("#ticketForm select[name='department']");
@@ -596,8 +614,42 @@ function getEmployeeOptions() {
     .map(employee => [normalizeEmployeeSearch(employee.name), employee])).values()];
 }
 
-function renderEmployeePicker(fieldName, selectedValue = "") {
-  const picker = $(`#ticketForm .employee-picker[data-field="${fieldName}"]`);
+function renderAssetPicker(picker, selectedValue = "") {
+  if (!picker) return;
+  const type = picker.dataset.pickerType;
+  const hiddenInput = picker.querySelector("input[type='hidden']");
+  const button = picker.querySelector(".asset-picker-value");
+  const menu = picker.querySelector(".asset-picker-menu");
+  const search = picker.querySelector(".asset-picker-search input");
+  const optionWrap = picker.querySelector(".asset-picker-options");
+  const source = type === "employee" ? getEmployeeOptions() : state.departments;
+  const getCode = item => item.employeeCode || item.code || item.maNV || "";
+  const getLabel = item => item.name || "";
+  const updateValue = value => {
+    hiddenInput.value = value;
+    button.textContent = value || (type === "employee" ? "Chọn người sử dụng" : "Chọn đơn vị / phòng ban");
+    button.classList.toggle("has-value", Boolean(value));
+  };
+  const renderOptions = (term = "") => {
+    const query = normalizeEmployeeSearch(term);
+    const filtered = source.filter(item => normalizeEmployeeSearch(`${getLabel(item)} ${getCode(item)}`).includes(query));
+    optionWrap.innerHTML = filtered.length ? filtered.map(item => `<button type="button" class="asset-picker-option ${hiddenInput.value === getLabel(item) ? "selected" : ""}" data-value="${esc(getLabel(item))}"><span class="asset-picker-option-name">${esc(getLabel(item))}</span><span class="asset-picker-option-meta">${esc(getCode(item) || (type === "employee" ? item.title || "Chưa cập nhật" : "Chưa có mã đơn vị"))}</span><span class="asset-picker-check">✓</span></button>`).join("") : `<div class="asset-picker-empty">Không tìm thấy ${type === "employee" ? "nhân viên" : "đơn vị"}</div>`;
+    optionWrap.querySelectorAll(".asset-picker-option").forEach(option => {
+      option.onclick = () => { updateValue(option.dataset.value); menu.classList.add("hidden"); search.value = ""; renderOptions(); };
+    });
+  };
+  updateValue(selectedValue || hiddenInput.value || "");
+  if (!picker.dataset.bound) {
+    button.onclick = event => { event.stopPropagation(); document.querySelectorAll(".employee-menu, .department-menu, .visit-performer-menu, .asset-picker-menu").forEach(element => element.classList.add("hidden")); menu.classList.toggle("hidden"); if (!menu.classList.contains("hidden")) search.focus(); };
+    document.addEventListener("click", event => { if (!picker.contains(event.target)) menu.classList.add("hidden"); });
+    picker.dataset.bound = "1";
+  }
+  search.oninput = event => renderOptions(event.target.value);
+  renderOptions(search.value);
+}
+
+function renderEmployeePicker(fieldName, selectedValue = "", rootSelector = "#ticketForm") {
+  const picker = $(`${rootSelector} .employee-picker[data-field="${fieldName}"]`);
   if (!picker) return;
   const employees = getEmployeeOptions();
   const hiddenInput = picker.querySelector("input[type='hidden']");
@@ -605,7 +657,7 @@ function renderEmployeePicker(fieldName, selectedValue = "") {
   const menu = picker.querySelector(".employee-menu");
   const search = picker.querySelector(".employee-search input");
   const optionWrap = picker.querySelector(".employee-options");
-  const defaultText = fieldName === "requester" ? "Chọn người yêu cầu" : "Chọn người phụ trách";
+  const defaultText = fieldName === "requester" ? "Chọn người yêu cầu" : fieldName === "assetOwner" ? "Chọn người sử dụng" : "Chọn người phụ trách";
   const setSelection = (employeeName) => {
     const employee = employees.find(item => item.name === employeeName) || null;
     hiddenInput.value = employee ? employee.name : "";
@@ -653,6 +705,8 @@ function updateEmployeesDatalist() {
   if (assigneePicker) { renderEmployeePicker("assignee", assigneePicker.querySelector("input").value || ""); }
   const visitPicker = $("#storeVisitForm .visit-performer-picker");
   if (visitPicker) { renderVisitPerformersPicker(visitPicker.querySelector("input[type='hidden']").value.split(",").map(name => name.trim()).filter(Boolean)); }
+  const assetEmployeePicker = $("#assetForm .employee-picker[data-field='assetOwner']");
+  if (assetEmployeePicker) renderEmployeePicker("assetOwner", assetEmployeePicker.querySelector("input[type='hidden']").value || "", "#assetForm");
 }
 
 function toast(msg, type = "success") { const x = $("#toast"); x.textContent = msg; x.className = `toast show ${type}`; clearTimeout(window.__toast); window.__toast = setTimeout(() => x.className = "toast", 2800) }

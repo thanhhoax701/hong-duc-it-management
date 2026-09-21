@@ -199,14 +199,30 @@
         <button class="close-btn" data-close="assetModal">×</button>
       </div>
       <form id="assetForm">
+        <input type="hidden" name="id">
         <div class="form-grid">
           <label>Mã tài sản<input name="code" required placeholder="TS-IT-0001"></label>
           <label>Loại<select name="category"><option>Máy tính</option><option>Thiết bị mạng</option><option>Camera / NVR</option><option>Server</option><option>UPS</option><option>Khác</option></select></label>
           <label class="span-2">Tên thiết bị<input name="name" required placeholder="Dell OptiPlex / Switch / NVR..."></label>
           <label>Serial / MAC<input name="serial"></label>
-          <label>Vị trí<input name="location" placeholder="Phòng IT"></label>
-          <label>Đơn vị sử dụng<input name="department" list="departmentList"></label>
-          <label>Người sử dụng<input name="owner"></label>
+          <label>Bộ phận sử dụng<input name="location" placeholder="Phòng IT / Bộ phận Kế toán"></label>
+          <label>Đơn vị / Phòng ban
+            <div class="asset-picker" data-picker-type="department">
+              <input type="hidden" name="department" value="">
+              <button type="button" class="asset-picker-value">Chọn đơn vị / phòng ban</button>
+              <div class="asset-picker-menu hidden"><div class="asset-picker-search"><input type="text" placeholder="Tìm tên hoặc mã đơn vị..."></div><div class="asset-picker-options"></div></div>
+            </div>
+          </label>
+          <label>Người sử dụng
+            <div class="employee-picker" data-field="assetOwner">
+              <input type="hidden" name="owner" value="">
+              <button type="button" class="employee-value">Chọn người sử dụng</button>
+              <div class="employee-menu hidden">
+                <div class="employee-search"><input type="text" placeholder="Tìm nhân viên..."></div>
+                <div class="employee-options"></div>
+              </div>
+            </div>
+          </label>
           <label>Tình trạng<select name="status"><option>Đang sử dụng</option><option>Dự phòng</option><option>Bảo trì</option><option>Hỏng</option><option>Thanh lý</option></select></label>
           <label>Ngày mua<input type="date" name="purchaseDate"></label>
         </div>
