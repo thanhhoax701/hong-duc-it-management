@@ -1,13 +1,15 @@
 <!doctype html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#d71920">
   <title>Hồng Đức IT Management</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=8">
 </head>
+
 <body>
   <div id="toast" class="toast"></div>
 
@@ -41,16 +43,10 @@
       </div>
 
       <nav class="main-nav">
-        <button class="nav-item active" data-page="dashboard"><i>⌂</i><span>Tổng quan</span></button>
-        <button class="nav-item" data-page="tickets"><i>✓</i><span>Vấn đề / Ticket</span><em id="navOpenCount">0</em></button>
-        <button class="nav-item" data-page="hardware"><i>▣</i><span>Quy trình phần cứng</span></button>
-        <button class="nav-item" data-page="systems"><i>◈</i><span>Quản trị hệ thống</span></button>
-        <button class="nav-item" data-page="assets"><i>▤</i><span>Tài sản / CCDC</span></button>
-        <button class="nav-item" data-page="maintenance"><i>↻</i><span>Bảo trì</span></button>
-        <button class="nav-item" data-page="storeVisits"><i>▦</i><span>Lịch đi cửa hàng</span></button>
-        <button class="nav-item" data-page="departments"><i>♙</i><span>Đơn vị / Phòng ban</span></button>
-        <button class="nav-item" data-page="employees"><i>♟</i><span>Nhân viên</span></button>
-        <button class="nav-item" data-page="reports"><i>▥</i><span>Báo cáo</span></button>
+        <button class="nav-item active" data-page="hardware"><i>▣</i><span>Phần cứng</span></button>
+        <button class="nav-item" data-page="systems"><i>◈</i><span>Hệ thống</span></button>
+        <button class="nav-item" data-page="server"><i>🖥</i><span>Máy chủ</span></button>
+        <button class="nav-item" data-page="management"><i>▤</i><span>Quản lý</span></button>
       </nav>
 
       <div class="sidebar-bottom">
@@ -60,7 +56,9 @@
           <div><b id="userName">IT Admin</b><small id="userEmail">Firebase</small></div>
           <span>⋮</span>
         </button>
-        <button class="logout-btn" id="logoutBtn" style="width:100%;border:0;border-top:1px solid #2a3b48;background:transparent;color:#aebfcb;padding:10px;text-align:left;font-size:10px">↪ <span>Đăng xuất</span></button>
+        <button class="logout-btn" id="logoutBtn"
+          style="width:100%;border:0;border-top:1px solid #2a3b48;background:transparent;color:#aebfcb;padding:10px;text-align:left;font-size:10px">↪
+          <span>Đăng xuất</span></button>
       </div>
     </aside>
 
@@ -86,7 +84,10 @@
   <div class="modal-backdrop hidden" id="storeVisitModal">
     <div class="modal modal-lg">
       <div class="modal-header">
-        <div><h2 id="storeVisitModalTitle">Thêm lịch đi cửa hàng</h2><p>Theo dõi nội dung, đơn vị và người thực hiện.</p></div>
+        <div>
+          <h2 id="storeVisitModalTitle">Thêm lịch đi cửa hàng</h2>
+          <p>Theo dõi nội dung, đơn vị và người thực hiện.</p>
+        </div>
         <button class="close-btn" data-close="storeVisitModal">×</button>
       </div>
       <form id="storeVisitForm">
@@ -94,7 +95,8 @@
         <div class="form-grid">
           <label>Ngày<input type="date" name="visitDate" required></label>
           <label>Giờ<input type="time" name="visitTime" required></label>
-          <label class="span-2">Nội dung xử lý<textarea name="content" rows="3" required placeholder="Ví dụ: Xử lý Camera bị ngoại tuyến"></textarea></label>
+          <label class="span-2">Nội dung xử lý<textarea name="content" rows="3" required
+              placeholder="Ví dụ: Xử lý Camera bị ngoại tuyến"></textarea></label>
           <label>Đơn vị / cửa hàng
             <div class="department-picker">
               <input type="hidden" name="department" value="">
@@ -111,14 +113,21 @@
               <input type="hidden" name="performers" value="">
               <button type="button" class="visit-performer-value">Chọn người thực hiện</button>
               <div class="visit-performer-menu hidden">
-                <div class="visit-performer-search"><input id="visitPerformers" type="text" placeholder="Tìm tên hoặc mã nhân viên..."></div>
+                <div class="visit-performer-search"><input id="visitPerformers" type="text"
+                    placeholder="Tìm tên hoặc mã nhân viên..."></div>
                 <div class="visit-performer-options"></div>
               </div>
             </div>
             <small class="field-hint">Có thể chọn nhiều người trong cùng một danh sách.</small>
           </div>
           <label>Trạng thái
-            <select name="status"><option>CHƯA XỬ LÝ</option><option>ĐANG XỬ LÝ</option><option>CHẬM TIẾN ĐỘ</option><option>ĐÃ LÊN LỊCH</option><option>ĐÃ XỬ LÝ</option></select>
+            <select name="status">
+              <option>CHƯA XỬ LÝ</option>
+              <option>ĐANG XỬ LÝ</option>
+              <option>CHẬM TIẾN ĐỘ</option>
+              <option>ĐÃ LÊN LỊCH</option>
+              <option>ĐÃ XỬ LÝ</option>
+            </select>
           </label>
           <label class="span-2">Ghi chú<textarea name="notes" rows="2" placeholder="Ghi chú thêm"></textarea></label>
         </div>
@@ -134,7 +143,10 @@
   <div class="modal-backdrop hidden" id="ticketModal">
     <div class="modal modal-lg">
       <div class="modal-header">
-        <div><h2 id="ticketModalTitle">Tạo yêu cầu mới</h2><p>Phiếu sẽ được lưu vào Firebase Firestore.</p></div>
+        <div>
+          <h2 id="ticketModalTitle">Tạo yêu cầu mới</h2>
+          <p>Phiếu sẽ được lưu vào Firebase Firestore.</p>
+        </div>
         <button class="close-btn" data-close="ticketModal">×</button>
       </div>
       <form id="ticketForm">
@@ -144,6 +156,7 @@
             <select name="type" required>
               <option value="hardware">Phần cứng</option>
               <option value="system">Quản trị hệ thống</option>
+              <option value="server">Máy chủ</option>
             </select>
           </label>
           <label>Ưu tiên
@@ -153,7 +166,8 @@
               <option value="Thấp">Thấp</option>
             </select>
           </label>
-          <label class="span-2">Tiêu đề / vấn đề<input name="title" required placeholder="Ví dụ: NVR HĐ 4 KHO XE mất ghi hình"></label>
+          <label class="span-2">Tiêu đề / vấn đề<input name="title" required
+              placeholder="Ví dụ: NVR HĐ 4 KHO XE mất ghi hình"></label>
           <label>Đơn vị / phòng ban
             <select name="department">
               <option value="">Chọn đơn vị</option>
@@ -180,8 +194,41 @@
             </div>
           </label>
           <label>Thiết bị / hệ thống<input name="systemName" placeholder="NVR / Firewall / BRAVO..."></label>
-          <label class="span-2">Hiện trạng / mô tả<textarea name="description" rows="5" placeholder="Mô tả hiện trạng, lỗi, thời điểm xảy ra..."></textarea></label>
-          <label class="span-2">Ghi chú xử lý<textarea name="resolution" rows="3" placeholder="Có thể cập nhật sau khi xử lý"></textarea></label>
+          <label class="span-2">Hiện trạng / mô tả<textarea name="description" rows="5"
+              placeholder="Mô tả hiện trạng, lỗi, thời điểm xảy ra..."></textarea></label>
+          <label class="span-2">Ghi chú xử lý<textarea name="resolution" rows="3"
+              placeholder="Có thể cập nhật sau khi xử lý"></textarea></label>
+          <div class="span-2 form-section"><strong>Kiểm tra và đề xuất</strong><small>Thông tin được lưu theo từng bước
+              của quy trình.</small></div>
+          <label class="span-2">Checklist kiểm tra<textarea name="inspectionChecklist" rows="3"
+              placeholder="Hạng mục đã kiểm tra; mỗi dòng một hạng mục"></textarea></label>
+          <label class="span-2">Phương án đề xuất<textarea name="proposal" rows="3"
+              placeholder="Phương án, nguyên nhân, hướng khắc phục"></textarea></label>
+          <div class="span-2 form-section"><strong>Mua sắm CCDC</strong><small>Dùng cho yêu cầu phần cứng khi cần mua
+              mới hoặc thay thế.</small></div>
+          <label>Nhà cung cấp<input name="supplier" placeholder="Tên nhà cung cấp"></label>
+          <label>Số báo giá<input name="quotationNumber" placeholder="Số báo giá / liên kết tài liệu"></label>
+          <label>Chi phí dự kiến<input name="estimatedCost" type="number" min="0" step="1000" placeholder="VNĐ"></label>
+          <label>Trạng thái phê duyệt<select name="purchaseApproval">
+              <option>Chưa đề xuất</option>
+              <option>Chờ phê duyệt</option>
+              <option>Đã duyệt</option>
+              <option>Từ chối</option>
+              <option>Đã mua</option>
+            </select></label>
+          <label class="span-2">Thông tin mua sắm<textarea name="purchaseDetails" rows="2"
+              placeholder="Thiết bị, số lượng, ngày mua, hóa đơn..."></textarea></label>
+          <div class="span-2 form-section"><strong>Bàn giao</strong><small>Ghi nhận người nhận và lịch sử sử dụng tài
+              sản.</small></div>
+          <label>Người nhận bàn giao<input name="handoverRecipient" placeholder="Họ tên người nhận"></label>
+          <label>Ngày bàn giao<input name="handoverDate" type="date"></label>
+          <label class="span-2">Biên bản bàn giao<textarea name="handoverRecord" rows="2"
+              placeholder="Số biên bản, tình trạng thiết bị, phụ kiện, chữ ký..."></textarea></label>
+          <label>Mã tài sản liên kết<input name="linkedAssetCode" placeholder="TS-IT-0001"></label>
+          <label class="span-2">Bằng chứng đính kèm<input name="evidenceFile" type="file"
+              accept="image/*,.pdf,.doc,.docx,.xlsx,.xls"></label>
+          <label class="span-2">Hoặc liên kết bằng chứng<input name="evidenceUrl" type="url"
+              placeholder="https://... (ảnh, biên bản, báo giá)"></label>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-light" data-close="ticketModal">Hủy</button>
@@ -191,26 +238,100 @@
     </div>
   </div>
 
+  <!-- Maintenance modal -->
+  <div class="modal-backdrop hidden" id="maintenanceModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h2 id="maintenanceModalTitle">Tạo lịch bảo trì</h2>
+          <p>Theo dõi lịch, kết quả và tình trạng quá hạn.</p>
+        </div><button class="close-btn" data-close="maintenanceModal">×</button>
+      </div>
+      <form id="maintenanceForm">
+        <input type="hidden" name="id">
+        <div class="form-grid">
+          <label class="span-2">Nội dung bảo trì<input name="title" required
+              placeholder="Bảo trì định kỳ firewall / NVR / server"></label>
+          <label>Thiết bị / hệ thống<input name="target" required placeholder="Firewall, NVR, Server..."></label>
+          <label>Người phụ trách<input name="assignee" required placeholder="Nhân viên IT"></label>
+          <label>Ngày đến hạn<input name="dueDate" type="date" required></label>
+          <label>Chu kỳ<select name="cycle">
+              <option>Không lặp lại</option>
+              <option>Hàng tuần</option>
+              <option>Hàng tháng</option>
+              <option>Hàng quý</option>
+              <option>Hàng năm</option>
+            </select></label>
+          <label>Trạng thái<select name="status">
+              <option>Đã lên lịch</option>
+              <option>Đang thực hiện</option>
+              <option>Hoàn tất</option>
+              <option>Quá hạn</option>
+              <option>Hủy</option>
+            </select></label>
+          <label class="span-2">Kết quả bảo trì<textarea name="result" rows="3"
+              placeholder="Hạng mục đã thực hiện, kết quả, vấn đề phát hiện..."></textarea></label>
+          <label class="span-2">Bằng chứng / biên bản<input name="evidenceFile" type="file"
+              accept="image/*,.pdf,.doc,.docx,.xlsx,.xls"></label>
+          <label class="span-2">Hoặc liên kết<input name="evidenceUrl" type="url" placeholder="https://..."></label>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-light"
+            data-close="maintenanceModal">Hủy</button><button class="btn btn-primary">Lưu lịch</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Operations records modal -->
+  <div class="modal-backdrop hidden" id="operationsModal">
+    <div class="modal">
+      <div class="modal-header"><div><h2 id="operationsModalTitle">Ghi nhận vận hành</h2><p>Uptime hoặc backup/khôi phục hệ thống.</p></div><button class="close-btn" data-close="operationsModal">×</button></div>
+      <form id="operationsForm"><input type="hidden" name="kind">
+        <div class="form-grid">
+          <label>Đối tượng / hệ thống<input name="target" required placeholder="Server, Firewall, BRAVO..."> </label>
+          <label>Ngày thực hiện<input name="date" type="date" required></label>
+          <label>Trạng thái<select name="status"><option>UP</option><option>DOWN</option><option>Đã kiểm tra</option><option>Không đạt</option></select></label>
+          <label>Uptime / kết quả<input name="uptime" placeholder="99.95% hoặc kết quả backup"></label>
+          <label class="span-2">Kiểm tra khôi phục / ghi chú<textarea name="restoreCheck" rows="3" placeholder="Thời điểm restore thử, dữ liệu khôi phục, lỗi phát hiện..."></textarea></label>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-light" data-close="operationsModal">Hủy</button><button class="btn btn-primary">Lưu ghi nhận</button></div>
+      </form>
+    </div>
+  </div>
+
   <!-- Asset modal -->
   <div class="modal-backdrop hidden" id="assetModal">
     <div class="modal">
       <div class="modal-header">
-        <div><h2>Thêm tài sản / CCDC</h2><p>Quản lý thiết bị và tài sản CNTT.</p></div>
+        <div>
+          <h2>Thêm tài sản / CCDC</h2>
+          <p>Quản lý thiết bị và tài sản CNTT.</p>
+        </div>
         <button class="close-btn" data-close="assetModal">×</button>
       </div>
       <form id="assetForm">
         <input type="hidden" name="id">
         <div class="form-grid">
           <label>Mã tài sản<input name="code" required placeholder="TS-IT-0001"></label>
-          <label>Loại<select name="category"><option>Máy tính</option><option>Thiết bị mạng</option><option>Camera / NVR</option><option>Server</option><option>UPS</option><option>Khác</option></select></label>
-          <label class="span-2">Tên thiết bị<input name="name" required placeholder="Dell OptiPlex / Switch / NVR..."></label>
+          <label>Loại<select name="category">
+              <option>Máy tính</option>
+              <option>Thiết bị mạng</option>
+              <option>Camera / NVR</option>
+              <option>Server</option>
+              <option>UPS</option>
+              <option>Khác</option>
+            </select></label>
+          <label class="span-2">Tên thiết bị<input name="name" required
+              placeholder="Dell OptiPlex / Switch / NVR..."></label>
           <label>Serial / MAC<input name="serial"></label>
           <label>Bộ phận sử dụng<input name="location" placeholder="Phòng IT / Bộ phận Kế toán"></label>
           <label>Đơn vị / Phòng ban
             <div class="asset-picker" data-picker-type="department">
               <input type="hidden" name="department" value="">
               <button type="button" class="asset-picker-value">Chọn đơn vị / phòng ban</button>
-              <div class="asset-picker-menu hidden"><div class="asset-picker-search"><input type="text" placeholder="Tìm tên hoặc mã đơn vị..."></div><div class="asset-picker-options"></div></div>
+              <div class="asset-picker-menu hidden">
+                <div class="asset-picker-search"><input type="text" placeholder="Tìm tên hoặc mã đơn vị..."></div>
+                <div class="asset-picker-options"></div>
+              </div>
             </div>
           </label>
           <label>Người sử dụng
@@ -223,7 +344,13 @@
               </div>
             </div>
           </label>
-          <label>Tình trạng<select name="status"><option>Đang sử dụng</option><option>Dự phòng</option><option>Bảo trì</option><option>Hỏng</option><option>Thanh lý</option></select></label>
+          <label>Tình trạng<select name="status">
+              <option>Đang sử dụng</option>
+              <option>Dự phòng</option>
+              <option>Bảo trì</option>
+              <option>Hỏng</option>
+              <option>Thanh lý</option>
+            </select></label>
           <label>Ngày mua<input type="date" name="purchaseDate"></label>
         </div>
         <div class="modal-footer">
@@ -238,15 +365,24 @@
   <div class="modal-backdrop hidden" id="departmentModal">
     <div class="modal">
       <div class="modal-header">
-        <div><h2>Thêm phòng ban / đơn vị</h2></div>
+        <div>
+          <h2>Thêm phòng ban / đơn vị</h2>
+        </div>
         <button class="close-btn" data-close="departmentModal">×</button>
       </div>
       <form id="departmentForm">
         <input type="hidden" name="id">
         <div class="form-grid">
-          <label class="span-2">Tên đơn vị / phòng ban<input name="name" required placeholder="Phòng Kinh Doanh"></label>
+          <label class="span-2">Tên đơn vị / phòng ban<input name="name" required
+              placeholder="Phòng Kinh Doanh"></label>
           <label>Mã đơn vị<input name="code" placeholder="PKD"></label>
-          <div class="span-2"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:9px;color:#4f606d">Danh sách người quản lý</b><button type="button" class="small-btn" id="addManagerBtn">＋ Thêm quản lý</button></div><div id="managerRows"></div><small style="display:block;margin-top:5px;color:#81909d;font-weight:400">Mỗi dòng là một người quản lý riêng, có mã nhân viên và SĐT riêng.</small></div>
+          <div class="span-2">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b
+                style="font-size:9px;color:#4f606d">Danh sách người quản lý</b><button type="button" class="small-btn"
+                id="addManagerBtn">＋ Thêm quản lý</button></div>
+            <div id="managerRows"></div><small style="display:block;margin-top:5px;color:#81909d;font-weight:400">Mỗi
+              dòng là một người quản lý riêng, có mã nhân viên và SĐT riêng.</small>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-light" data-close="departmentModal">Hủy</button>
@@ -256,8 +392,12 @@
     </div>
   </div>
 
-  <input id="departmentUpload" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
-  <input id="employeeUpload" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+  <input id="departmentUpload" type="file"
+    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+    hidden>
+  <input id="employeeUpload" type="file"
+    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+    hidden>
   <datalist id="departmentList"></datalist>
   <datalist id="employeeList"></datalist>
   <datalist id="employeeRequesterList"></datalist>
@@ -265,16 +405,28 @@
 
   <div class="modal-backdrop hidden" id="employeeModal">
     <div class="modal modal-lg">
-      <div class="modal-header"><div><h2 id="employeeModalTitle">Chỉnh sửa nhân viên</h2><p>Cập nhật thông tin nhân viên.</p></div><button class="close-btn" data-close="employeeModal">×</button></div>
-      <form id="employeeForm"><input type="hidden" name="id"><div class="form-grid">
-        <label>Mã nhân viên<input name="employeeCode" required></label><label>Họ và tên<input name="name" required></label>
-        <label>Nơi làm việc<input name="workplace"></label><label>Tên bộ phận hiện tại<input name="department"></label>
-        <label>Chức danh<input name="title"></label><label>Chức danh chi tiết<input name="detailedTitle"></label>
-        <label>Điện thoại<input name="phone" type="tel"></label><label>Ngày sinh<input name="birthDate"></label>
-        <label>Giới tính<input name="gender"></label><label>Email<input name="email" type="email"></label>
-      </div><div class="modal-footer"><button type="button" class="btn btn-light" data-close="employeeModal">Hủy</button><button class="btn btn-primary">Lưu thay đổi</button></div></form>
+      <div class="modal-header">
+        <div>
+          <h2 id="employeeModalTitle">Chỉnh sửa nhân viên</h2>
+          <p>Cập nhật thông tin nhân viên.</p>
+        </div><button class="close-btn" data-close="employeeModal">×</button>
+      </div>
+      <form id="employeeForm"><input type="hidden" name="id">
+        <div class="form-grid">
+          <label>Mã nhân viên<input name="employeeCode" required></label><label>Họ và tên<input name="name"
+              required></label>
+          <label>Nơi làm việc<input name="workplace"></label><label>Tên bộ phận hiện tại<input
+              name="department"></label>
+          <label>Chức danh<input name="title"></label><label>Chức danh chi tiết<input name="detailedTitle"></label>
+          <label>Điện thoại<input name="phone" type="tel"></label><label>Ngày sinh<input name="birthDate"></label>
+          <label>Giới tính<input name="gender"></label><label>Email<input name="email" type="email"></label>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-light"
+            data-close="employeeModal">Hủy</button><button class="btn btn-primary">Lưu thay đổi</button></div>
+      </form>
     </div>
   </div>
-  <script type="module" src="js/app.js?v=3"></script>
+  <script type="module" src="js/app.js?v=8"></script>
 </body>
+
 </html>

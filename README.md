@@ -51,6 +51,19 @@ App sử dụng các collection:
 - `departments`
 - `maintenance`
 - `audit`
+- `ticketHistory`
+- `users`
+
+Collection `users` dùng document trùng Firebase Auth UID. Mỗi document cần có:
+
+```json
+{
+	"role": "admin | it | department_manager | requester",
+	"department": "Tên đơn vị"
+}
+```
+
+Có thể dùng custom claim `role` thay cho trường `role`; `department` vẫn lấy từ document người dùng khi cần giới hạn theo phòng ban.
 
 ### 5. Ticket
 
