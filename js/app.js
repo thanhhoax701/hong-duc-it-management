@@ -356,7 +356,6 @@ function hardwarePage() {
         <p><b>Nâng cao:</b> ${esc(item.advanced)}</p>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-light" data-hardware-focus="${esc(item.id)}">Xem chi tiết</button>
         <button class="btn btn-primary" data-action="new-ticket" data-ticket-type="hardware" data-ticket-system="${esc(item.label)}">Tạo yêu cầu</button>
       </div>
     </div>
@@ -805,9 +804,44 @@ async function saveEmployee(e) {
   try { await updateDocRemote("employees", id, data); closeModal("employeeModal"); toast("Đã cập nhật nhân viên", "success"); render() } catch (err) { toast(err.message, "error") }
 }
 
+function renderTicketStepper(step = 1) {
+  const labels = ["Yêu cầu", "Kiểm tra / giao việc", "Đề xuất / xử lý", "Mua sắm CCDC", "Bàn giao"];
+  const currentStep = Math.min(5, Math.max(1, Number(step) || 1));
+  const stepper = $("#ticketStepper");
+  if (!stepper) return;
+  stepper.innerHTML = labels.map((label, index) => {
+    const stepNumber = index + 1;
+    const stateClass = stepNumber < currentStep ? "completed" : stepNumber === currentStep ? "current" : "pending";
+    return `<button type="button" class="ticket-step ${stateClass}" data-ticket-step="${stepNumber}"><span>${stepNumber}</span><small>${label}</small></button>`;
+  }).join("");
+  showTicketStep(currentStep);
+}
+function showTicketStep(step = 1) {
+  const stepFields = [
+    ["type", "priority", "title", "department", "requester", "assignee", "systemName", "description", "resolution"],
+    ["inspectionChecklist", "inspectionDate", "inspectionResult", "workAssignment", "inspectionDueDate"],
+    ["proposal", "rootCause", "actionPlan", "impactLevel", "estimatedResolutionTime", "requiredSupport"],
+    ["supplier", "quotationNumber", "estimatedCost", "purchaseApproval", "purchaseReason", "purchaseQuantity", "expectedPurchaseDate", "warrantyPeriod", "budgetSource", "purchaseDetails"],
+    ["handoverRecipient", "handoverDate", "handoverCondition", "handoverStatus", "handoverAccessories", "handoverRecord", "linkedAssetCode", "handoverConfirmedBy", "handoverNotes", "evidenceFile", "evidenceUrl"]
+  ];
+  const currentStep = Math.min(5, Math.max(1, Number(step) || 1));
+  const form = $("#ticketForm");
+  if (!form) return;
+  form.querySelectorAll(".form-grid > label").forEach(label => {
+    const field = label.querySelector("[name]");
+    label.hidden = !field || !stepFields[currentStep - 1].includes(field.name);
+  });
+  const sectionSteps = [1, 2, 3, 4, 5];
+  form.querySelectorAll(".form-section").forEach((section, index) => { section.hidden = sectionSteps[index] !== currentStep; });
+  $("#ticketStepper")?.querySelectorAll("[data-ticket-step]").forEach(button => {
+    button.classList.toggle("selected", Number(button.dataset.ticketStep) === currentStep);
+  });
+}
 function openTicketModal(type = "hardware", ticket = null, presetSystemName = "") {
   $("#ticketModal").classList.remove("hidden"); const f = $("#ticketForm"); f.reset();
   $("#ticketModalTitle").textContent = ticket ? "Chỉnh sửa yêu cầu" : "Tạo yêu cầu mới";
+  renderTicketStepper(ticket?.step || 1);
+  $("#ticketStepper")?.querySelectorAll("[data-ticket-step]").forEach(button => button.onclick = () => showTicketStep(button.dataset.ticketStep));
   f.elements.type.value = ticket?.type || type;
   if (presetSystemName) {
     f.elements.systemName.value = presetSystemName;

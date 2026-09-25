@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#d71920">
   <title>Hồng Đức IT Management</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=8">
+  <link rel="stylesheet" href="css/style.css?v=13">
 </head>
 
 <body>
@@ -149,9 +149,11 @@
         </div>
         <button class="close-btn" data-close="ticketModal">×</button>
       </div>
+      <div class="ticket-stepper" id="ticketStepper" aria-label="Tiến trình xử lý yêu cầu"></div>
       <form id="ticketForm">
         <input type="hidden" name="id">
         <div class="form-grid">
+          <div class="span-2 form-section"><strong>Yêu cầu</strong><small>Thông tin tiếp nhận và phân loại yêu cầu CNTT.</small></div>
           <label>Loại quy trình
             <select name="type" required>
               <option value="hardware">Phần cứng</option>
@@ -194,16 +196,40 @@
             </div>
           </label>
           <label>Thiết bị / hệ thống<input name="systemName" placeholder="NVR / Firewall / BRAVO..."></label>
+          <div class="span-2 form-section"><strong>Kiểm tra / giao việc</strong><small>Ghi nhận hiện trạng, phân công và các hạng mục đã kiểm tra.</small></div>
           <label class="span-2">Hiện trạng / mô tả<textarea name="description" rows="5"
               placeholder="Mô tả hiện trạng, lỗi, thời điểm xảy ra..."></textarea></label>
           <label class="span-2">Ghi chú xử lý<textarea name="resolution" rows="3"
               placeholder="Có thể cập nhật sau khi xử lý"></textarea></label>
-          <div class="span-2 form-section"><strong>Kiểm tra và đề xuất</strong><small>Thông tin được lưu theo từng bước
-              của quy trình.</small></div>
           <label class="span-2">Checklist kiểm tra<textarea name="inspectionChecklist" rows="3"
               placeholder="Hạng mục đã kiểm tra; mỗi dòng một hạng mục"></textarea></label>
+          <label>Ngày kiểm tra<input name="inspectionDate" type="date"></label>
+          <label>Kết quả kiểm tra<select name="inspectionResult">
+              <option>Chưa kiểm tra</option>
+              <option>Đạt</option>
+              <option>Không đạt</option>
+              <option>Cần theo dõi</option>
+            </select></label>
+          <label class="span-2">Nội dung phân công<textarea name="workAssignment" rows="3"
+              placeholder="Người thực hiện, nội dung cần xử lý và yêu cầu phối hợp..."></textarea></label>
+          <label>Hạn xử lý dự kiến<input name="inspectionDueDate" type="date"></label>
+            <div class="span-2 form-section"><strong>Đề xuất / xử lý</strong><small>Ghi nhận nguyên nhân, phương án và hướng khắc phục.</small></div>
           <label class="span-2">Phương án đề xuất<textarea name="proposal" rows="3"
               placeholder="Phương án, nguyên nhân, hướng khắc phục"></textarea></label>
+            <label class="span-2">Nguyên nhân gốc<textarea name="rootCause" rows="3"
+              placeholder="Nguyên nhân trực tiếp và nguyên nhân gốc của vấn đề..."></textarea></label>
+            <label class="span-2">Phương án thực hiện<textarea name="actionPlan" rows="3"
+              placeholder="Các bước thực hiện, thứ tự ưu tiên và cách khắc phục..."></textarea></label>
+            <label>Mức độ ảnh hưởng<select name="impactLevel">
+              <option>Chưa đánh giá</option>
+              <option>Thấp</option>
+              <option>Trung bình</option>
+              <option>Cao</option>
+              <option>Nghiêm trọng</option>
+            </select></label>
+            <label>Thời gian dự kiến<input name="estimatedResolutionTime" placeholder="Ví dụ: 2 giờ, 1 ngày"></label>
+            <label class="span-2">Hỗ trợ / phối hợp cần thiết<textarea name="requiredSupport" rows="2"
+              placeholder="Bộ phận, nhà cung cấp hoặc nguồn lực cần phối hợp..."></textarea></label>
           <div class="span-2 form-section"><strong>Mua sắm CCDC</strong><small>Dùng cho yêu cầu phần cứng khi cần mua
               mới hoặc thay thế.</small></div>
           <label>Nhà cung cấp<input name="supplier" placeholder="Tên nhà cung cấp"></label>
@@ -216,15 +242,39 @@
               <option>Từ chối</option>
               <option>Đã mua</option>
             </select></label>
+          <label class="span-2">Lý do mua sắm<textarea name="purchaseReason" rows="2"
+              placeholder="Nhu cầu mua mới, thay thế, mở rộng hoặc dự phòng..."></textarea></label>
+          <label>Số lượng<input name="purchaseQuantity" type="number" min="1" step="1" placeholder="Ví dụ: 1"></label>
+          <label>Ngày dự kiến mua<input name="expectedPurchaseDate" type="date"></label>
+          <label>Thời hạn bảo hành<input name="warrantyPeriod" placeholder="Ví dụ: 12 tháng"></label>
+          <label>Nguồn ngân sách<input name="budgetSource" placeholder="Ví dụ: Ngân sách IT 2026"></label>
           <label class="span-2">Thông tin mua sắm<textarea name="purchaseDetails" rows="2"
               placeholder="Thiết bị, số lượng, ngày mua, hóa đơn..."></textarea></label>
           <div class="span-2 form-section"><strong>Bàn giao</strong><small>Ghi nhận người nhận và lịch sử sử dụng tài
               sản.</small></div>
           <label>Người nhận bàn giao<input name="handoverRecipient" placeholder="Họ tên người nhận"></label>
           <label>Ngày bàn giao<input name="handoverDate" type="date"></label>
+          <label>Tình trạng khi bàn giao<select name="handoverCondition">
+              <option>Chưa ghi nhận</option>
+              <option>Mới</option>
+              <option>Đang hoạt động tốt</option>
+              <option>Cần theo dõi</option>
+              <option>Có hư hỏng</option>
+            </select></label>
+          <label>Trạng thái bàn giao<select name="handoverStatus">
+              <option>Chưa bàn giao</option>
+              <option>Đã bàn giao</option>
+              <option>Chờ ký xác nhận</option>
+              <option>Cần bổ sung hồ sơ</option>
+            </select></label>
+          <label class="span-2">Phụ kiện / tài sản đi kèm<input name="handoverAccessories"
+              placeholder="Ví dụ: Adapter, dây nguồn, chuột, bàn phím..."></label>
           <label class="span-2">Biên bản bàn giao<textarea name="handoverRecord" rows="2"
               placeholder="Số biên bản, tình trạng thiết bị, phụ kiện, chữ ký..."></textarea></label>
           <label>Mã tài sản liên kết<input name="linkedAssetCode" placeholder="TS-IT-0001"></label>
+          <label>Người xác nhận<input name="handoverConfirmedBy" placeholder="Họ tên người xác nhận"></label>
+          <label class="span-2">Ghi chú sau bàn giao<textarea name="handoverNotes" rows="2"
+              placeholder="Lưu ý sử dụng, thời hạn bảo hành hoặc nội dung cần theo dõi..."></textarea></label>
           <label class="span-2">Bằng chứng đính kèm<input name="evidenceFile" type="file"
               accept="image/*,.pdf,.doc,.docx,.xlsx,.xls"></label>
           <label class="span-2">Hoặc liên kết bằng chứng<input name="evidenceUrl" type="url"
@@ -426,7 +476,7 @@
       </form>
     </div>
   </div>
-  <script type="module" src="js/app.js?v=8"></script>
+  <script type="module" src="js/app.js?v=11"></script>
 </body>
 
 </html>
