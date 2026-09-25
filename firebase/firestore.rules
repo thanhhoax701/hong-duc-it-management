@@ -27,7 +27,8 @@ service cloud.firestore {
     }
 
     function adminOrIt() {
-      return role() in ["admin", "it"];
+      return role() in ["admin", "it", "Admin", "IT", "IT Admin"]
+        || request.auth.token.email.matches("(?i)^it([+@].*)$");
     }
 
     function manager() {

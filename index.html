@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#d71920">
   <title>Hồng Đức IT Management</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=13">
+  <link rel="stylesheet" href="css/style.css?v=14">
 </head>
 
 <body>
@@ -171,9 +171,14 @@
           <label class="span-2">Tiêu đề / vấn đề<input name="title" required
               placeholder="Ví dụ: NVR HĐ 4 KHO XE mất ghi hình"></label>
           <label>Đơn vị / phòng ban
-            <select name="department">
-              <option value="">Chọn đơn vị</option>
-            </select>
+            <div class="department-picker">
+              <input type="hidden" name="department" value="">
+              <button type="button" class="department-value">Chọn đơn vị</button>
+              <div class="department-menu hidden">
+                <div class="department-search"><input type="text" placeholder="Tìm tên hoặc mã đơn vị..."></div>
+                <div class="department-options"></div>
+              </div>
+            </div>
           </label>
           <label>Người yêu cầu
             <div class="employee-picker" data-field="requester">
@@ -303,7 +308,16 @@
           <label class="span-2">Nội dung bảo trì<input name="title" required
               placeholder="Bảo trì định kỳ firewall / NVR / server"></label>
           <label>Thiết bị / hệ thống<input name="target" required placeholder="Firewall, NVR, Server..."></label>
-          <label>Người phụ trách<input name="assignee" required placeholder="Nhân viên IT"></label>
+          <label>Người phụ trách
+            <div class="employee-picker" data-field="maintenanceAssignee">
+              <input type="hidden" name="assignee" value="">
+              <button type="button" class="employee-value">Chọn người phụ trách</button>
+              <div class="employee-menu hidden">
+                <div class="employee-search"><input type="text" placeholder="Tìm tên, mã nhân viên..."></div>
+                <div class="employee-options"></div>
+              </div>
+            </div>
+          </label>
           <label>Ngày đến hạn<input name="dueDate" type="date" required></label>
           <label>Chu kỳ<select name="cycle">
               <option>Không lặp lại</option>
@@ -463,11 +477,11 @@
       </div>
       <form id="employeeForm"><input type="hidden" name="id">
         <div class="form-grid">
-          <label>Mã nhân viên<input name="employeeCode" required></label><label>Họ và tên<input name="name"
+          <label>Trạng thái<input name="status" value="Đang làm việc"></label><label>Mã nhân viên<input name="employeeCode" required></label><label>Họ và tên<input name="name"
               required></label>
-          <label>Nơi làm việc<input name="workplace"></label><label>Tên bộ phận hiện tại<input
+          <label>Nơi làm việc<input name="workplace"></label><label>ID chấm công<input name="attendanceId"></label><label>Tên bộ phận hiện tại<input
               name="department"></label>
-          <label>Chức danh<input name="title"></label><label>Chức danh chi tiết<input name="detailedTitle"></label>
+          <label>Chức danh<input name="title"></label><label>Chức danh chi tiết<input name="detailedTitle"></label><label>Chức danh kiêm nhiệm<input name="actingTitle"></label>
           <label>Điện thoại<input name="phone" type="tel"></label><label>Ngày sinh<input name="birthDate"></label>
           <label>Giới tính<input name="gender"></label><label>Email<input name="email" type="email"></label>
         </div>
