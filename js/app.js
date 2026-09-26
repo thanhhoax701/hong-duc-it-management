@@ -5,10 +5,23 @@ const FBASE = "https://www.gstatic.com/firebasejs/10.12.5";
 let firebaseReady = false, auth = null, db = null;
 let firebaseApp = null;
 let user = null;
-let state = { page: "hardware", tickets: [], assets: [], departments: [], employees: [], maintenance: [], storeVisits: [], ticketHistory: [], comments: [], notifications: [], approvals: [], backups: [], uptime: [], audit: [], search: "", ticketType: "", ticketPriority: "", employeePage: 1, hardwareFocus: "", systemFocus: "", systemLevel: "all", systemQuery: "", systemRequestStatus: "" };
+let state = { page: "hardware", tickets: [], assets: [], departments: [], employees: [], maintenance: [], storeVisits: [], ticketHistory: [], comments: [], notifications: [], approvals: [], backups: [], uptime: [], audit: [], search: "", ticketType: "", ticketPriority: "", employeePage: 1, listPages: {}, systemFocus: "", systemLevel: "all", systemQuery: "", systemRequestStatus: "" };
+const EMPLOYEE_PAGE_SIZE = 50;
+const LIST_PAGE_SIZE = 20;
 let currentRole = "requester";
 let currentDepartment = "";
 let unsubscribers = [];
+
+function paginateList(listKey, items, pageSize = LIST_PAGE_SIZE, itemLabel = "dòng") {
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const page = Math.max(1, Math.min(state.listPages[listKey] || 1, totalPages));
+  state.listPages[listKey] = page;
+  const startIndex = (page - 1) * pageSize;
+  const firstVisiblePage = Math.max(1, Math.min(page - 2, totalPages - 4));
+  const visiblePages = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstVisiblePage + index);
+  const pagination = items.length ? `<div class="employee-pagination"><div class="employee-pagination-summary"><strong>${startIndex + 1}–${Math.min(startIndex + pageSize, items.length)}</strong><span>trên ${items.length} ${itemLabel}</span></div><nav class="employee-pagination-controls" aria-label="Phân trang"><button type="button" class="employee-page-button" data-list-page="${listKey}" data-page-action="first" data-total-pages="${totalPages}" title="Trang đầu" aria-label="Trang đầu" ${page === 1 ? "disabled" : ""}>≪</button><button type="button" class="employee-page-button" data-list-page="${listKey}" data-page-action="prev" data-total-pages="${totalPages}" title="Trang trước" aria-label="Trang trước" ${page === 1 ? "disabled" : ""}>‹</button>${visiblePages.map(number => `<button type="button" class="employee-page-button${number === page ? " active" : ""}" data-list-page="${listKey}" data-page-action="${number}" data-total-pages="${totalPages}" aria-label="Trang ${number}" ${number === page ? 'aria-current="page"' : ""}>${number}</button>`).join("")}<button type="button" class="employee-page-button" data-list-page="${listKey}" data-page-action="next" data-total-pages="${totalPages}" title="Trang sau" aria-label="Trang sau" ${page === totalPages ? "disabled" : ""}>›</button><button type="button" class="employee-page-button" data-list-page="${listKey}" data-page-action="last" data-total-pages="${totalPages}" title="Trang cuối" aria-label="Trang cuối" ${page === totalPages ? "disabled" : ""}>≫</button></nav></div>` : "";
+  return { items: items.slice(startIndex, startIndex + pageSize), page, totalPages, pagination };
+}
 
 const hardwareSteps = [
   ["Yêu cầu", "Tiếp nhận yêu cầu phần cứng"],
@@ -273,12 +286,14 @@ function statusBadge(s) { return `<span class="badge ${s === "Hoàn tất" ? "ba
 
 function ticketsPage() {
   const q = state.search.toLowerCase(), rows = state.tickets.filter(t => `${t.id} ${t.title} ${t.department} ${t.systemName}`.toLowerCase().includes(q) && (!state.ticketType || t.type === state.ticketType) && (!state.ticketPriority || t.priority === state.ticketPriority));
+  const page = paginateList("tickets", rows, LIST_PAGE_SIZE, "phiếu");
   return `<div class="page-title-row"><div><h2>Danh sách vấn đề</h2><p>${rows.length} phiếu phù hợp</p></div><div class="filters"><select id="ticketType"><option value="">Tất cả loại</option><option value="hardware" ${state.ticketType === "hardware" ? "selected" : ""}>Phần cứng</option><option value="system" ${state.ticketType === "system" ? "selected" : ""}>Hệ thống</option><option value="server" ${state.ticketType === "server" ? "selected" : ""}>Máy chủ</option></select><select id="ticketPriority"><option value="">Tất cả ưu tiên</option><option ${state.ticketPriority === "Cao" ? "selected" : ""}>Cao</option><option ${state.ticketPriority === "Trung bình" ? "selected" : ""}>Trung bình</option><option ${state.ticketPriority === "Thấp" ? "selected" : ""}>Thấp</option></select><button class="btn btn-primary" data-action="new-ticket">＋ Tạo phiếu</button></div></div>
- <div class="card">${ticketTable(rows)}</div>`;
+ <div class="card">${ticketTable(page.items)}${page.pagination}</div>`;
 }
 
 function workflowPage(type, title, steps) {
   const rows = state.tickets.filter(t => t.type === type);
+  const page = paginateList(`workflow-${type}`, rows, LIST_PAGE_SIZE, "phiếu");
   const typeIcon = { hardware: "🧰", system: "⚙️", server: "🖥️" }[type] || "▣";
   const typeLabel = { hardware: "phần cứng", system: "hệ thống", server: "máy chủ" }[type] || "quy trình";
   return `<div class="flow-steps">${steps.map((s, i) => {
@@ -286,7 +301,7 @@ function workflowPage(type, title, steps) {
     return `<div class="flow-step ${count ? "active" : ""} ${i === 0 ? "done" : ""}"><div class="n">${i + 1}</div><b>${esc(s[0])}</b><small>${esc(s[1])}</small><div class="step-count">${count} phiếu</div></div>`
   }).join("")}</div>
  <div class="card"><div class="card-head"><div><h3>${title}</h3><p>Có thể chuyển từng phiếu sang bước tiếp theo.</p></div><button class="btn btn-primary" data-action="new-ticket" data-type="${type}">＋ Tạo yêu cầu</button></div>
- ${rows.length ? rows.map(t => `<div class="ticket-card"><div>${typeIcon}</div><div class="ticket-main"><b>${esc(t.title)}</b><small>${esc(t.id)} • ${esc(t.department || "Chưa có đơn vị")} • ${esc(t.assignee || "Chưa phân công")}</small><div class="progress-line" style="margin-top:9px"><span style="width:${((t.step || 1) / 5) * 100}%"></span></div></div><div>${statusBadge(t.status)}<small style="display:block;text-align:center;margin-top:4px;color:#8a98a3;font-size:8px">Bước ${t.step || 1}/5</small></div><div class="ticket-actions">${t.step < 5 ? `<button class="small-btn icon-action" title="Chuyển bước" aria-label="Chuyển bước yêu cầu" data-advance="${esc(t.id)}">→</button>` : ""}<button class="small-btn icon-action" title="Xem" aria-label="Xem yêu cầu" data-view-ticket="${esc(t.id)}">⌕</button>${ticketActionButtons(t)}</div></div>`).join("") : `<div class="empty"><strong>Chưa có phiếu ${typeLabel}</strong>Tạo yêu cầu để bắt đầu quy trình.</div>`}</div>`;
+ ${page.items.length ? page.items.map(t => `<div class="ticket-card"><div>${typeIcon}</div><div class="ticket-main"><b>${esc(t.title)}</b><small>${esc(t.id)} • ${esc(t.department || "Chưa có đơn vị")} • ${esc(t.assignee || "Chưa phân công")}</small><div class="progress-line" style="margin-top:9px"><span style="width:${((t.step || 1) / 5) * 100}%"></span></div></div><div>${statusBadge(t.status)}<small style="display:block;text-align:center;margin-top:4px;color:#8a98a3;font-size:8px">Bước ${t.step || 1}/5</small></div><div class="ticket-actions">${t.step < 5 ? `<button class="small-btn icon-action" title="Chuyển bước" aria-label="Chuyển bước yêu cầu" data-advance="${esc(t.id)}">→</button>` : ""}<button class="small-btn icon-action" title="Xem" aria-label="Xem yêu cầu" data-view-ticket="${esc(t.id)}">⌕</button>${ticketActionButtons(t)}</div></div>`).join("") : `<div class="empty"><strong>Chưa có phiếu ${typeLabel}</strong>Tạo yêu cầu để bắt đầu quy trình.</div>`}${page.pagination}</div>`;
 }
 function buildProcessDiagram({ title, variant = "red", steps, infoText }) {
   const labels = [
@@ -338,7 +353,6 @@ function buildProcessDiagram({ title, variant = "red", steps, infoText }) {
 }
 
 function hardwarePage() {
-  const focus = state.hardwareFocus ? hardwareCatalog.find(item => item.id === state.hardwareFocus) : null;
   const cards = hardwareCatalog.map(item => `
     <div class="card" style="padding:16px; min-height:180px; display:flex; flex-direction:column; gap:10px;">
       <div class="card-head" style="align-items:flex-start">
@@ -362,36 +376,21 @@ function hardwarePage() {
     </div>
   `).join("");
 
-  const focusPanel = focus ? `
-    <div class="card" style="margin-bottom:16px;">
-      <div class="card-head">
-        <div><h3>${esc(focus.label)}</h3><p>${esc(focus.group)}</p></div>
-        <button class="btn btn-light" data-hardware-focus="">Đóng</button>
-      </div>
-      <div class="grid-2">
-        <div class="card" style="background:#fff6f6; border-color:#f4d4d6;">
-          <div class="label muted">Cơ bản</div>
-          <p style="font-size:10px; line-height:1.7; margin-top:8px;">${esc(focus.basic)}</p>
-        </div>
-        <div class="card" style="background:#f8fbff; border-color:#d5deee;">
-          <div class="label muted">Nâng cao</div>
-          <p style="font-size:10px; line-height:1.7; margin-top:8px;">${esc(focus.advanced)}</p>
-        </div>
-      </div>
-    </div>
-  ` : "";
-
   return `
     <div class="page-title-row">
-      <div><h2>Phần cứng</h2><p>Quản lý theo từng đầu mục: thiết bị, rack, mạng cơ bản, camera, UPS, máy in ...</p></div>
-      <button class="btn btn-primary" data-action="new-ticket" data-ticket-type="hardware">＋ Tạo yêu cầu phần cứng</button>
+      <div><h2>PHẦN CỨNG</h2><p>Quản lý theo từng đầu mục: thiết bị, rack, mạng cơ bản, camera, UPS, máy in ...</p></div>
+      <button class="btn btn-primary" type="button" data-open-hardware-details>Xem chi tiết phần cứng</button>
     </div>
     ${systemRequestsHtml("hardware", "Danh sách yêu cầu phần cứng")}
-    ${focusPanel}
-    <div class="grid-2">${cards}</div>
+    <div class="modal-backdrop hidden" id="hardwareDetailsModal">
+      <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="hardwareDetailsTitle">
+        <div class="modal-header"><div><h2 id="hardwareDetailsTitle">Chi tiết phần cứng</h2><p>${hardwareCatalog.length} đầu mục vận hành</p></div><button class="close-btn" type="button" data-close="hardwareDetailsModal" title="Đóng" aria-label="Đóng chi tiết phần cứng">×</button></div>
+        <div class="grid-2" style="padding:16px;gap:12px">${cards}</div>
+      </div>
+    </div>
   `;
 }
-function serverPage() { return `<div class="page-title-row"><div><h2>Máy chủ</h2><p>Server, mạng và firewall</p></div><button class="btn btn-primary" data-action="new-ticket" data-ticket-type="server">＋ Tạo yêu cầu máy chủ</button></div>${systemRequestsHtml("server", "Danh sách yêu cầu máy chủ")}${serverMatrixHtml()}` }
+function serverPage() { return `<div class="page-title-row"><div><h2>MÁY CHỦ</h2><p>Server, mạng và firewall</p></div><button class="btn btn-primary" data-action="new-ticket" data-ticket-type="server">＋ Tạo yêu cầu máy chủ</button></div>${systemRequestsHtml("server", "Danh sách yêu cầu máy chủ")}${serverMatrixHtml()}` }
 const serverCatalog = [
   { id: "firewall", icon: "🛡", label: "Firewall", group: "MÁY CHỦ", basic: "Kiểm tra trạng thái; kiểm tra rule có sẵn; mở port theo yêu cầu/quy trình; kiểm tra kết nối", advanced: "Thiết kế policy; NAT; VPN; HA; IDS/IPS; phân tích traffic; xử lý sự cố bảo mật" },
   { id: "network", icon: "🌐", label: "Mạng", group: "MÁY CHỦ", basic: "Bấm/thay dây mạng; cấu hình IP; kết nối Wi-Fi; kiểm tra ping; kiểm tra port; thay thiết bị theo cấu hình có sẵn", advanced: "Thiết kế LAN/WAN; VLAN; routing; VPN; Wi-Fi system; redundancy; phân tích lỗi mạng diện rộng" },
@@ -455,7 +454,7 @@ function catalogMatrixHtml() {
 }
 
 function systemsPage() {
-  return `<div class="page-title-row"><div><h2>Hệ thống</h2><p>Storage/Backup, tổng đài và camera</p></div><button class="btn btn-primary" data-action="new-ticket" data-ticket-type="system">＋ Tạo yêu cầu hệ thống</button></div>${systemRequestsHtml()}${systemMatrixHtml()}`;
+  return `<div class="page-title-row"><div><h2>HỆ THỐNG</h2><p>Storage/Backup, tổng đài và camera</p></div><button class="btn btn-primary" data-action="new-ticket" data-ticket-type="system">＋ Tạo yêu cầu hệ thống</button></div>${systemRequestsHtml()}${systemMatrixHtml()}`;
 }
 
 function systemMatrixHtml() {
@@ -467,15 +466,18 @@ function systemRequestsHtml(type = "system", title = "Danh sách yêu cầu hệ
   const allRows = state.tickets.filter(ticket => ticket.type === type);
   const scopeLabel = type === "server" ? "Máy chủ" : type === "hardware" ? "Phần cứng" : "Hệ thống";
   const query = state.search.trim().toLowerCase();
-  const rows = allRows.filter(ticket => {
+  const filteredRows = allRows.filter(ticket => {
     const matchesQuery = !query || `${ticket.id} ${ticket.title} ${ticket.systemName} ${ticket.department} ${ticket.assignee}`.toLowerCase().includes(query);
     const matchesStatus = !state.systemRequestStatus || (ticket.status || "Chờ xử lý") === state.systemRequestStatus;
     return matchesQuery && matchesStatus;
   });
+  const page = paginateList(`requests-${type}`, filteredRows, LIST_PAGE_SIZE, "yêu cầu");
   const open = allRows.filter(ticket => ticket.step < 5).length;
   const high = allRows.filter(ticket => ticket.step < 5 && ticket.priority === "Cao").length;
   const done = allRows.filter(ticket => ticket.step === 5).length;
-  return `<section class="system-requests"><div class="system-request-header"><div><span class="system-kicker">THEO DÕI XỬ LÝ</span><h2>${title}</h2><p>${rows.length} yêu cầu${query || state.systemRequestStatus ? " phù hợp" : " đang theo dõi"}</p></div><button class="btn btn-primary" data-action="new-ticket" data-ticket-type="${type}">＋ Tạo yêu cầu</button></div><div class="system-request-overview"><div class="system-request-stats"><div><b>${open}</b><span>Đang mở</span></div><div><b>${high}</b><span>Ưu tiên cao</span></div><div><b>${done}</b><span>Hoàn tất</span></div></div><div class="system-request-toolbar"><span class="system-request-hint">Lọc theo trạng thái yêu cầu</span><select id="systemRequestStatus"><option value="">Tất cả trạng thái</option>${["Chờ kiểm tra", "Đang xử lý", "Hoàn tất", "Chờ xử lý"].map(status => `<option value="${status}" ${state.systemRequestStatus === status ? "selected" : ""}>${status}</option>`).join("")}</select></div></div>${rows.length ? `<div class="system-request-list">${rows.map(ticket => `<article class="system-request-row"><div class="system-request-id"><b>${esc(ticket.id)}</b><small>${esc(ticket.createdAtText || "")}</small></div><div class="system-request-main"><b>${esc(ticket.title)}</b><small>${esc(ticket.systemName || scopeLabel)} • ${esc(ticket.department || "Chưa có đơn vị")} • Phụ trách: ${esc(ticket.assignee || "Chưa phân công")}</small><div class="progress-line"><span style="width:${Math.min(100, ((ticket.step || 1) / 5) * 100)}%"></span></div></div><div class="system-request-status">${priorityBadge(ticket.priority)}${statusBadge(ticket.status)}<small>Bước ${ticket.step || 1}/5</small></div><div class="system-request-actions">${ticket.step < 5 ? `<button class="small-btn icon-action" title="Chuyển bước" aria-label="Chuyển bước yêu cầu" data-advance="${esc(ticket.id)}">→</button>` : ""}<button class="small-btn icon-action" title="Xem" aria-label="Xem yêu cầu" data-view-ticket="${esc(ticket.id)}">⌕</button>${ticketActionButtons(ticket)}</div></article>`).join("")}</div>` : `<div class="empty system-request-empty"><strong>Chưa có yêu cầu ${scopeLabel.toLowerCase()}</strong>Tạo yêu cầu đầu tiên để bắt đầu theo dõi.</div>`}</section>`;
+  const requestRows = page.items.map(ticket => `<article class="system-request-row"><div class="system-request-id"><b>${esc(ticket.id)}</b><small>${esc(ticket.createdAtText || "")}</small></div><div class="system-request-main"><b>${esc(ticket.title)}</b><small>${esc(ticket.systemName || scopeLabel)} • ${esc(ticket.department || "Chưa có đơn vị")} • Phụ trách: ${esc(ticket.assignee || "Chưa phân công")}</small><div class="progress-line"><span style="width:${Math.min(100, ((ticket.step || 1) / 5) * 100)}%"></span></div></div><div class="system-request-status">${priorityBadge(ticket.priority)}${statusBadge(ticket.status)}<small>Bước ${ticket.step || 1}/5</small></div><div class="system-request-actions">${ticket.step < 5 ? `<button class="small-btn icon-action" title="Chuyển bước" aria-label="Chuyển bước yêu cầu" data-advance="${esc(ticket.id)}">→</button>` : ""}<button class="small-btn icon-action" title="Xem" aria-label="Xem yêu cầu" data-view-ticket="${esc(ticket.id)}">⌕</button>${ticketActionButtons(ticket)}</div></article>`).join("");
+  const requestList = filteredRows.length ? `<div class="system-request-list">${requestRows}</div>` : `<div class="empty system-request-empty"><strong>Chưa có yêu cầu ${scopeLabel.toLowerCase()}</strong>Tạo yêu cầu đầu tiên để bắt đầu theo dõi.</div>`;
+  return `<section class="system-requests"><div class="system-request-header"><div><span class="system-kicker">THEO DÕI XỬ LÝ</span><h2>${title}</h2><p>${filteredRows.length} yêu cầu${query || state.systemRequestStatus ? " phù hợp" : " đang theo dõi"}</p></div><button class="btn btn-primary" data-action="new-ticket" data-ticket-type="${type}">＋ Tạo yêu cầu</button></div><div class="system-request-overview"><div class="system-request-stats"><div><b>${open}</b><span>Đang mở</span></div><div><b>${high}</b><span>Ưu tiên cao</span></div><div><b>${done}</b><span>Hoàn tất</span></div></div><div class="system-request-toolbar"><span class="system-request-hint">Lọc theo trạng thái yêu cầu</span><select id="systemRequestStatus"><option value="">Tất cả trạng thái</option>${["Chờ kiểm tra", "Đang xử lý", "Hoàn tất", "Chờ xử lý"].map(status => `<option value="${status}" ${state.systemRequestStatus === status ? "selected" : ""}>${status}</option>`).join("")}</select></div></div>${requestList}${page.pagination}</section>`;
 }
 
 function systemCapabilityCatalogHtml() {
@@ -496,10 +498,11 @@ function assetsPage() {
     const departmentOrder = String(a.department || "Chưa phân loại").localeCompare(String(b.department || "Chưa phân loại"), "vi", { sensitivity: "base" });
     return departmentOrder || String(a.code || "").localeCompare(String(b.code || ""), "vi", { numeric: true, sensitivity: "base" });
   });
+  const page = paginateList("assets", sortedAssets, LIST_PAGE_SIZE, "tài sản");
   let groupNumber = -1;
-  const assetRows = sortedAssets.map((asset, index) => {
+  const assetRows = page.items.map((asset, index) => {
     const department = asset.department || "Chưa phân loại";
-    const previousDepartment = index ? sortedAssets[index - 1].department || "Chưa phân loại" : "";
+    const previousDepartment = index ? page.items[index - 1].department || "Chưa phân loại" : "";
     if (department !== previousDepartment) groupNumber += 1;
     const groupKey = String(groupNumber);
     const groupRow = department !== previousDepartment ? `<tr class="asset-group-row"><td colspan="8"><button type="button" class="asset-group-toggle" data-asset-group="${groupKey}" aria-expanded="false"><span>▸</span>${esc(department)}</button></td></tr>` : "";
@@ -507,7 +510,7 @@ function assetsPage() {
   }).join("");
   return `<div class="page-title-row"><div><button class="link-btn" data-back-to-management>← Quay lại</button><h2 style="margin-top:8px">Tài sản / CCDC</h2><p>${state.assets.length} tài sản đang quản lý</p></div><button class="btn btn-primary" data-action="new-asset">＋ Thêm tài sản</button></div>
  <div class="stats"><div class="stat-card"><span class="icon">▤</span><div class="label">Tổng tài sản</div><div class="value">${state.assets.length}</div></div><div class="stat-card"><span class="icon">✓</span><div class="label">Đang sử dụng</div><div class="value">${state.assets.filter(a => a.status === "Đang sử dụng").length}</div></div><div class="stat-card"><span class="icon">↻</span><div class="label">Bảo trì</div><div class="value">${state.assets.filter(a => a.status === "Bảo trì").length}</div></div><div class="stat-card"><span class="icon">!</span><div class="label">Hỏng</div><div class="value">${state.assets.filter(a => a.status === "Hỏng").length}</div></div></div>
- <div class="card">${sortedAssets.length ? `<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Tài sản</th><th>Loại</th><th>Serial</th><th>Bộ phận sử dụng</th><th>Đơn vị / Phòng ban</th><th>Tình trạng</th><th></th></tr></thead><tbody>${assetRows}</tbody></table></div>` : `<div class="empty"><strong>Chưa có tài sản</strong>Thêm thiết bị CNTT đầu tiên.</div>`}</div>`;
+ <div class="card">${sortedAssets.length ? `<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Tài sản</th><th>Loại</th><th>Serial</th><th>Bộ phận sử dụng</th><th>Đơn vị / Phòng ban</th><th>Tình trạng</th><th></th></tr></thead><tbody>${assetRows}</tbody></table></div>${page.pagination}` : `<div class="empty"><strong>Chưa có tài sản</strong>Thêm thiết bị CNTT đầu tiên.</div>`}</div>`;
 }
 function assetStatus(s) { return `<span class="badge ${s === "Đang sử dụng" ? "badge-green" : s === "Hỏng" ? "badge-red" : s === "Bảo trì" ? "badge-orange" : "badge-gray"}">${esc(s)}</span>` }
 
@@ -554,9 +557,10 @@ async function syncEmployeeReferences(previous, updated) {
 
 function maintenancePage() {
   const rows = state.maintenance.map(row => ({ ...row, status: maintenanceStatus(row) }));
+  const page = paginateList("maintenance", rows, LIST_PAGE_SIZE, "lịch");
   return `<div class="page-title-row"><div><button class="link-btn" data-back-to-management>← Quay lại</button><h2 style="margin-top:8px">Bảo trì</h2><p>Theo dõi lịch bảo trì thiết bị và hệ thống</p></div><button class="btn btn-primary" data-action="new-maintenance-modal">＋ Tạo lịch bảo trì</button></div>
  <div class="grid-3"><div class="card"><div class="label muted">Đến hạn</div><div class="value" style="font-size:26px;font-weight:800;margin-top:7px">${rows.filter(x => x.status !== "Hoàn tất").length}</div></div><div class="card"><div class="label muted">Đã hoàn tất</div><div class="value" style="font-size:26px;font-weight:800;margin-top:7px">${rows.filter(x => x.status === "Hoàn tất").length}</div></div><div class="card"><div class="label muted">Thiết bị cần chú ý</div><div class="value" style="font-size:26px;font-weight:800;margin-top:7px">${state.assets.filter(a => ["Bảo trì", "Hỏng"].includes(a.status)).length}</div></div></div>
- <div class="card" style="margin-top:15px">${rows.length ? `<div class="table-wrap"><table><thead><tr><th>Nội dung</th><th>Đối tượng</th><th>Phụ trách</th><th>Đến hạn</th><th>Chu kỳ</th><th>Trạng thái</th><th>Kết quả</th><th></th></tr></thead><tbody>${rows.map(row => `<tr><td><b>${esc(row.title)}</b></td><td>${esc(row.target)}</td><td>${esc(row.assignee)}</td><td>${esc(row.dueDate || "-")}</td><td>${esc(row.cycle || "-")}</td><td>${statusBadge(row.status)}</td><td>${esc(row.result || "-")}</td><td class="row-actions"><button class="small-btn icon-action" title="Sửa" aria-label="Sửa lịch bảo trì" data-edit-maintenance="${esc(row.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa lịch bảo trì" data-delete-maintenance="${esc(row.id)}">×</button></td></tr>`).join("")}</tbody></table></div>` : `<div class="empty"><strong>Chưa có lịch bảo trì</strong>Hãy tạo lịch để theo dõi.</div>`}</div>`;
+ <div class="card" style="margin-top:15px">${rows.length ? `<div class="table-wrap"><table><thead><tr><th>Nội dung</th><th>Đối tượng</th><th>Phụ trách</th><th>Đến hạn</th><th>Chu kỳ</th><th>Trạng thái</th><th>Kết quả</th><th></th></tr></thead><tbody>${page.items.map(row => `<tr><td><b>${esc(row.title)}</b></td><td>${esc(row.target)}</td><td>${esc(row.assignee)}</td><td>${esc(row.dueDate || "-")}</td><td>${esc(row.cycle || "-")}</td><td>${statusBadge(row.status)}</td><td>${esc(row.result || "-")}</td><td class="row-actions"><button class="small-btn icon-action" title="Sửa" aria-label="Sửa lịch bảo trì" data-edit-maintenance="${esc(row.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa lịch bảo trì" data-delete-maintenance="${esc(row.id)}">×</button></td></tr>`).join("")}</tbody></table></div>${page.pagination}` : `<div class="empty"><strong>Chưa có lịch bảo trì</strong>Hãy tạo lịch để theo dõi.</div>`}</div>`;
 }
 
 function storeVisitsPage() {
@@ -564,8 +568,9 @@ function storeVisitsPage() {
   const rows = [...state.storeVisits]
     .filter(row => !query || `${row.visitDate || ""} ${row.visitTime || ""} ${row.content || ""} ${row.department || ""} ${row.performers || ""} ${row.status || ""} ${row.notes || ""}`.toLowerCase().includes(query))
     .sort((a, b) => `${a.visitDate || ""} ${a.visitTime || ""}`.localeCompare(`${b.visitDate || ""} ${b.visitTime || ""}`));
+  const page = paginateList("storeVisits", rows, LIST_PAGE_SIZE, "lịch");
   return `<div class="page-title-row"><div><button class="link-btn" data-back-to-management>← Quay lại</button><h2 style="margin-top:8px">Lịch đi cửa hàng</h2><p>${rows.length} lịch${query ? " phù hợp" : " đang theo dõi"}</p></div><button class="btn btn-primary" data-action="new-store-visit">＋ Thêm lịch</button></div>
-  <div class="card store-visit-card"><div class="table-wrap"><table class="store-visit-table"><thead><tr><th>Ngày</th><th>Giờ</th><th>Nội dung xử lý</th><th>Đơn vị</th><th>Người thực hiện</th><th>Trạng thái</th><th>Ghi chú</th><th></th></tr></thead><tbody>${rows.length ? rows.map(storeVisitRow).join("") : `<tr><td colspan="8"><div class="empty"><strong>Chưa có lịch đi cửa hàng</strong>Thêm lịch đầu tiên để theo dõi.</div></td></tr>`}</tbody></table></div></div>`;
+  <div class="card store-visit-card"><div class="table-wrap"><table class="store-visit-table"><thead><tr><th>Ngày</th><th>Giờ</th><th>Nội dung xử lý</th><th>Đơn vị</th><th>Người thực hiện</th><th>Trạng thái</th><th>Ghi chú</th><th></th></tr></thead><tbody>${rows.length ? page.items.map(storeVisitRow).join("") : `<tr><td colspan="8"><div class="empty"><strong>Chưa có lịch đi cửa hàng</strong>Thêm lịch đầu tiên để theo dõi.</div></td></tr>`}</tbody></table></div>${page.pagination}</div>`;
 }
 
 function storeVisitRow(row) {
@@ -586,49 +591,134 @@ function departmentsPage() {
   const normalizeDepartmentName = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\s+/g, " ").trim();
   const leadershipRank = employee => { const title = normalizeDepartmentName(employee.title || employee.detailedTitle || ""); if (/^pho giam doc|pho giam doc/.test(title)) return 1; if (/giam doc/.test(title)) return 0; if (/truong phong/.test(title)) return 2; if (/pho phong/.test(title)) return 3; if (/giam sat/.test(title)) return 4; return 99 };
   const departments = [...state.departments].sort((a, b) => { const aIndex = departmentOrder.indexOf(normalizeDepartmentCode(a.code)), bIndex = departmentOrder.indexOf(normalizeDepartmentCode(b.code)); return (aIndex < 0 ? departmentOrder.length : aIndex) - (bIndex < 0 ? departmentOrder.length : bIndex) || String(a.name || "").localeCompare(String(b.name || ""), "vi") });
+  const page = paginateList("departments", departments, LIST_PAGE_SIZE, "đơn vị");
+  const departmentCards = page.items.map(d => {
+    const managers = state.employees.filter(employee => normalizeDepartmentName(employee.department) === normalizeDepartmentName(d.name) && leadershipRank(employee) <= 4).sort((a, b) => leadershipRank(a) - leadershipRank(b) || String(a.name || "").localeCompare(String(b.name || ""), "vi"));
+    return `<div class="card"><div style="display:flex;justify-content:space-between"><span class="badge badge-blue">${esc(d.code || "DV")}</span><div><button class="small-btn icon-action" title="Sửa" aria-label="Sửa đơn vị" data-edit-dept="${esc(d.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa đơn vị" data-delete-dept="${esc(d.id)}">×</button></div></div><h3 style="font-size:13px;margin:14px 0 4px">${esc(d.name)}</h3>${managers.length ? managers.map(m => `<p class="muted" style="font-size:9px;margin:8px 0;white-space:pre-line"><b>${esc(m.name)}</b> - ${esc(m.title || "Chưa cập nhật")}<br>Mã NV: ${esc(m.employeeCode || "-")} | SĐT: ${esc(m.phone || "-")}</p>`).join("") : `<p class="muted" style="font-size:9px">Chưa có nhân sự từ cấp Giám sát</p>`}<div style="margin-top:13px;font-size:9px;color:#778792">Ticket: <b>${state.tickets.filter(t => t.department === d.name).length}</b></div></div>`;
+  }).join("") || `<div class="card"><div class="empty"><strong>Chưa có đơn vị</strong>Thêm đơn vị đầu tiên.</div></div>`;
   return `<div class="page-title-row"><div><button class="link-btn" data-back-to-management>← Quay lại</button><h2 style="margin-top:8px">Đơn vị / Phòng ban</h2><p>${state.departments.length} đơn vị trong danh mục</p></div><div class="filters"><button class="btn btn-light" data-action="upload-departments">↑ Tải lên Excel</button><button class="btn btn-primary" data-action="new-department">＋ Thêm đơn vị</button></div></div>
- <div class="grid-3">${departments.map(d => { const managers = state.employees.filter(employee => normalizeDepartmentName(employee.department) === normalizeDepartmentName(d.name) && leadershipRank(employee) <= 4).sort((a, b) => leadershipRank(a) - leadershipRank(b) || String(a.name || "").localeCompare(String(b.name || ""), "vi")); return `<div class="card"><div style="display:flex;justify-content:space-between"><span class="badge badge-blue">${esc(d.code || "DV")}</span><div><button class="small-btn icon-action" title="Sửa" aria-label="Sửa đơn vị" data-edit-dept="${esc(d.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa đơn vị" data-delete-dept="${esc(d.id)}">×</button></div></div><h3 style="font-size:13px;margin:14px 0 4px">${esc(d.name)}</h3>${managers.length ? managers.map(m => `<p class="muted" style="font-size:9px;margin:8px 0;white-space:pre-line"><b>${esc(m.name)}</b> - ${esc(m.title || "Chưa cập nhật")}<br>Mã NV: ${esc(m.employeeCode || "-")} | SĐT: ${esc(m.phone || "-")}</p>`).join("") : `<p class="muted" style="font-size:9px">Chưa có nhân sự từ cấp Giám sát</p>`}<div style="margin-top:13px;font-size:9px;color:#778792">Ticket: <b>${state.tickets.filter(t => t.department === d.name).length}</b></div></div>` }).join("") || `<div class="card"><div class="empty"><strong>Chưa có đơn vị</strong>Thêm đơn vị đầu tiên.</div></div>`}</div>`;
+ <div class="grid-3">${departmentCards}</div>${page.pagination}`;
 }
 
 function employeesPage() {
   const query = normalizeEmployeeSearch(state.search);
   const normalizeText = value => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toUpperCase().replace(/[^A-Z0-9\s-]/g, " ").replace(/\s+/g, " ").trim();
+  const namedWorkplaceOrder = [/MAU THAN|HDMT/, /NAM CAN THO|HDNCT/, /VINH THANH|HDVTA/, /VI THUY|HDVTY/, /CHAU THANH|HDCHAUTHANH/, /LO TE|HDLOTE/, /SOC TRANG|HDST/, /HAUS/];
   const workplaceSortKey = workplace => {
     const normalized = normalizeText(workplace);
     if (!normalized) return [999, 999, ""];
     if (/A0?1|VP CONG TY/.test(normalized)) return [0, 0, normalized];
     const headNumber = Number((normalized.match(/(?:HEAD|H)[^\d]*(\d{1,2})/) || normalized.match(/(?:^|[\s-])H0?(\d{1,2})(?:$|[\s-])/))?.[1] || normalized.match(/(?:^|[\s-])0?(\d{1,2})(?:$|[\s-])/)?.[1] || 999);
     if (/HEAD|H\d{1,2}/.test(normalized)) return [1, headNumber, normalized];
+    const namedIndex = namedWorkplaceOrder.findIndex(pattern => pattern.test(normalized));
+    if (namedIndex >= 0) return [2, namedIndex, normalized];
     if (/HDMT|HDNCT|HDVTA|HDVTY|HDCHAUTHANH|HDLOTE|HDST/.test(normalized)) return [2, Number((normalized.match(/(\d+)/)?.[1] || 999)), normalized];
     return [3, 999, normalized];
   };
-  const employeeTitleRank = employee => {
-    const title = normalizeText(employee.title || employee.detailedTitle || "");
-    if (/^PHO GIAM DOC|PHO GIAM DOC/.test(title)) return 1;
-    if (/GIAM DOC/.test(title)) return 0;
-    if (/TRUONG PHONG/.test(title)) return 2;
-    if (/PHO PHONG/.test(title)) return 3;
-    if (/GIAM SAT/.test(title)) return 4;
-    if (/TO TRUONG/.test(title)) return 5;
-    if (/TO PHO/.test(title)) return 6;
-    if (/CHUYEN VIEN|NHAN VIEN/.test(title)) return 7;
-    return 8;
-  };
-  const rows = state.employees.filter(employee => normalizeEmployeeSearch(`${employee.name || ""} ${employee.employeeCode || employee.code || employee.maNV || ""} ${employee.phone || ""}`).includes(query)).sort((a, b) => { const aKey = workplaceSortKey(a.workplace), bKey = workplaceSortKey(b.workplace); return aKey[0] - bKey[0] || aKey[1] - bKey[1] || aKey[2].localeCompare(bKey[2], "vi") || String(a.department || "").localeCompare(String(b.department || ""), "vi") || employeeTitleRank(a) - employeeTitleRank(b) || String(a.name || "").localeCompare(String(b.name || ""), "vi") });
-  const pageSize = Math.max(1, rows.length), totalPages = 1; state.employeePage = 1; const pageRows = rows;
-  const officeDepartmentOrder = ["Ban Giám đốc", "Ban Kiểm soát", "Kế toán", "Phòng Kinh doanh", "Phòng Nhân sự - Đào tạo", "Phòng CSKH", "Kho tổng", "Khác", "Phòng Tài chính - Kế toán"];
+  const rows = state.employees.filter(employee => normalizeEmployeeSearch(`${employee.name || ""} ${employee.employeeCode || employee.code || employee.maNV || ""} ${employee.phone || ""}`).includes(query));
+  const workplaceOrder = (a, b) => { const aKey = workplaceSortKey(a), bKey = workplaceSortKey(b); return aKey[0] - bKey[0] || aKey[1] - bKey[1] || aKey[2].localeCompare(bKey[2], "vi") };
+  const officeDepartmentOrder = ["Ban Giám đốc", "Ban Kiểm soát", "Phòng Kinh doanh", "Phòng Nhân sự - Đào tạo", "Phòng CSKH", "Kho tổng", "Khác", "Phòng Tài chính - Kế toán"];
   const headDepartmentOrder = ["Quản lý HEAD", "Kế toán", "Phụ tùng", "Dịch vụ", "Bán hàng", "Khác"];
-  const normalizeDepartment = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase().replace(/\s+/g, " ").trim();
-  const canonicalDepartment = value => {
+  const normalizeDepartment = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[đĐ]/g, "d").toLowerCase().replace(/\s+/g, " ").trim();
+  const canonicalDepartment = (value, isOffice) => {
     const normalized = normalizeDepartment(value);
-    const known = [...officeDepartmentOrder, ...headDepartmentOrder].find(item => normalizeDepartment(item) === normalized);
+    if (isOffice && /(tai chinh|ke toan)/.test(normalized)) return "Phòng Tài chính - Kế toán";
+    if (!isOffice) {
+      if (/quan ly head|cua hang/.test(normalized)) return "Quản lý HEAD";
+      if (/ke toan/.test(normalized)) return "Kế toán";
+      if (/phu tung/.test(normalized)) return "Phụ tùng";
+      if (/dich vu|ky thuat/.test(normalized)) return "Dịch vụ";
+      if (/ban hang/.test(normalized)) return "Bán hàng";
+    } else {
+      if (/ban giam doc/.test(normalized)) return "Ban Giám đốc";
+      if (/ban kiem soat/.test(normalized)) return "Ban Kiểm soát";
+      if (/kinh doanh/.test(normalized)) return "Phòng Kinh doanh";
+      if (/nhan su|dao tao/.test(normalized)) return "Phòng Nhân sự - Đào tạo";
+      if (/cskh|cham soc khach hang/.test(normalized)) return "Phòng CSKH";
+      if (/kho tong/.test(normalized)) return "Kho tổng";
+    }
+    const known = (isOffice ? officeDepartmentOrder : headDepartmentOrder).find(item => normalizeDepartment(item) === normalized);
     return known || String(value || "Chưa xác định bộ phận").replace(/\s+/g, " ").trim();
   };
-  const departmentGroups = pageRows.reduce((groups, employee) => { const department = canonicalDepartment(employee.department); groups[department] ??= []; groups[department].push(employee); return groups }, {});
-  const sortedDepartmentGroups = Object.entries(departmentGroups).sort(([a], [b]) => { const aIndex = officeDepartmentOrder.concat(headDepartmentOrder).findIndex(item => normalizeDepartment(item) === normalizeDepartment(a)); const bIndex = officeDepartmentOrder.concat(headDepartmentOrder).findIndex(item => normalizeDepartment(item) === normalizeDepartment(b)); return (aIndex < 0 ? 999 : aIndex) - (bIndex < 0 ? 999 : bIndex) || a.localeCompare(b, "vi") });
-  const groupedRows = sortedDepartmentGroups.map(([department, employees]) => `<details class="employee-group" open><summary><span>▸ ${esc(department)}</span><b>${employees.length} nhân viên</b></summary><div class="table-wrap"><table><thead><tr><th>Trạng thái</th><th>Mã</th><th>Họ và tên</th><th>Nơi làm việc</th><th>ID chấm công</th><th>Chức danh</th><th>Điện thoại</th><th>Ngày sinh</th><th>Giới tính</th><th>Email</th><th></th></tr></thead><tbody>${employees.map(employee => `<tr><td><span class="badge badge-green">${esc(employee.status || "Đang làm việc")}</span></td><td><b>${esc(employee.employeeCode)}</b></td><td><b>${esc(employee.name)}</b></td><td>${esc(employee.workplace || "-")}</td><td>${esc(employee.attendanceId || "-")}</td><td>${esc(employee.title || "-")}<small>${esc(employee.detailedTitle || "")}${employee.actingTitle ? `<br>Kiêm nhiệm: ${esc(employee.actingTitle)}` : ""}</small></td><td>${esc(employee.phone || "-")}</td><td>${esc(employee.birthDate || "-")}</td><td>${esc(employee.gender || "-")}</td><td>${esc(employee.email || "-")}</td><td class="row-actions"><button class="small-btn icon-action" title="Sửa" aria-label="Sửa nhân viên" data-edit-employee="${esc(employee.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa nhân viên" data-delete-employee="${esc(employee.id)}">×</button></td></tr>`).join("")}</tbody></table></div></details>`).join("");
+  const employeeDepartment = (employee, isOffice) => {
+    const order = isOffice ? officeDepartmentOrder : headDepartmentOrder;
+    const department = canonicalDepartment(employee.department, isOffice);
+    if (order.includes(department)) return department;
+    for (const value of [employee.detailedTitle, employee.actingTitle, employee.title]) {
+      const inferred = canonicalDepartment(value, isOffice);
+      if (order.includes(inferred)) return inferred;
+    }
+    return department;
+  };
+  const workplaces = new Map();
+  rows.forEach(employee => {
+    const rawWorkplace = String(employee.workplace || "Chưa xác định nơi làm việc").replace(/\s+/g, " ").trim();
+    const isOffice = workplaceSortKey(rawWorkplace)[0] === 0;
+    const workplace = isOffice ? "A01-VP Công ty" : rawWorkplace;
+    const workplaceKey = isOffice ? "office" : normalizeText(rawWorkplace);
+    if (!workplaces.has(workplaceKey)) workplaces.set(workplaceKey, { workplace, employees: [] });
+    workplaces.get(workplaceKey).employees.push(employee);
+  });
+  const roleRank = (employee, isOffice, department) => {
+    const roles = isOffice
+      ? [/^giam doc(?: |$)/, /^pho giam doc(?: |$)/, /^truong phong(?: |$)/, /^pho phong(?: |$)/, /^giam sat(?: |$)/, /^to truong(?: |$)/, /^to pho(?: |$)/, /^(?:chuyen vien|nhan vien)(?: |$)/]
+      : normalizeDepartment(department) === normalizeDepartment("Quản lý HEAD")
+        ? [/^cua hang truong(?: |$)/, /^cua hang pho(?: |$)/, /^ky thuat truong(?: |$)/, /^ky thuat pho(?: |$)/, /^to truong(?: |$)/, /^to pho(?: |$)/, /^nhan vien(?: |$)/]
+        : normalizeDepartment(department) === normalizeDepartment("Dịch vụ")
+          ? [/^ky thuat truong(?: |$)/, /^ky thuat pho(?: |$)/, /^nhan vien(?: |$)/]
+          : [/^to truong(?: |$)/, /^to pho(?: |$)/, /^nhan vien(?: |$)/];
+    const rankTitle = value => roles.findIndex(pattern => pattern.test(normalizeDepartment(value)));
+    const primaryRank = rankTitle(employee.title);
+    if (primaryRank >= 0) return primaryRank;
+    const secondaryRank = rankTitle(`${employee.detailedTitle || ""} ${employee.actingTitle || ""}`);
+    return secondaryRank < 0 ? roles.length : secondaryRank;
+  };
+  const renderEmployeeTable = employees => `<div class="table-wrap"><table class="employee-table"><thead><tr><th>Trạng thái</th><th>Mã</th><th>Họ và tên</th><th>ID chấm công</th><th>Chức danh</th><th>Điện thoại</th><th>Ngày sinh</th><th>Giới tính</th><th>Email</th><th></th></tr></thead><tbody>${employees.map(employee => `<tr><td><span class="badge badge-green">${esc(employee.status || "Đang làm việc")}</span></td><td><b>${esc(employee.employeeCode)}</b></td><td><b>${esc(employee.name)}</b></td><td>${esc(employee.attendanceId || "-")}</td><td>${esc(employee.title || "-")}<small>${esc(employee.detailedTitle || "")}${employee.actingTitle ? `<br>Kiêm nhiệm: ${esc(employee.actingTitle)}` : ""}</small></td><td>${esc(employee.phone || "-")}</td><td>${esc(employee.birthDate || "-")}</td><td>${esc(employee.gender || "-")}</td><td>${esc(employee.email || "-")}</td><td class="row-actions"><button class="small-btn icon-action" title="Sửa" aria-label="Sửa nhân viên" data-edit-employee="${esc(employee.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa nhân viên" data-delete-employee="${esc(employee.id)}">×</button></td></tr>`).join("")}</tbody></table></div>`;
+  const sortedWorkplaces = [...workplaces.values()].sort((a, b) => workplaceOrder(a.workplace, b.workplace));
+  const groupedWorkplaces = sortedWorkplaces.map(({ workplace, employees }) => {
+    const isOffice = workplaceSortKey(workplace)[0] === 0;
+    const departmentOrder = isOffice ? officeDepartmentOrder : headDepartmentOrder;
+    const departments = new Map();
+    employees.forEach(employee => {
+      const department = employeeDepartment(employee, isOffice);
+      if (!departments.has(department)) departments.set(department, []);
+      departments.get(department).push(employee);
+    });
+    const sortedDepartments = [...departments.entries()].sort(([a], [b]) => {
+      const aIndex = departmentOrder.findIndex(item => normalizeDepartment(item) === normalizeDepartment(a));
+      const bIndex = departmentOrder.findIndex(item => normalizeDepartment(item) === normalizeDepartment(b));
+      return (aIndex < 0 ? 999 : aIndex) - (bIndex < 0 ? 999 : bIndex) || a.localeCompare(b, "vi");
+    });
+    const orderedDepartments = sortedDepartments.map(([department, members]) => {
+      members.sort((a, b) => roleRank(a, isOffice, department) - roleRank(b, isOffice, department) || String(a.name || "").localeCompare(String(b.name || ""), "vi"));
+      return { department, members };
+    });
+    return { workplace, employees, departments: orderedDepartments };
+  });
+  const orderedEmployees = groupedWorkplaces.flatMap(group => group.departments.flatMap(department => department.members));
+  const totalPages = Math.max(1, Math.ceil(orderedEmployees.length / EMPLOYEE_PAGE_SIZE));
+  state.employeePage = Math.max(1, Math.min(state.employeePage, totalPages));
+  const pageStartIndex = (state.employeePage - 1) * EMPLOYEE_PAGE_SIZE;
+  const pageEmployees = orderedEmployees.slice(pageStartIndex, pageStartIndex + EMPLOYEE_PAGE_SIZE);
+  const pageEmployeeSet = new Set(pageEmployees);
+  const groupedRows = groupedWorkplaces.map(({ workplace, employees, departments }) => {
+    const visibleDepartments = departments.filter(department => department.members.some(employee => pageEmployeeSet.has(employee)));
+    if (!visibleDepartments.length) return "";
+    const visibleWorkplaceCount = visibleDepartments.reduce((count, department) => count + department.members.filter(employee => pageEmployeeSet.has(employee)).length, 0);
+    const workplaceCountLabel = visibleWorkplaceCount === employees.length ? `${employees.length} nhân viên` : `${visibleWorkplaceCount}/${employees.length} nhân viên trang này`;
+    const departmentRows = visibleDepartments.map(({ department, members }) => {
+      const visibleMembers = members.filter(employee => pageEmployeeSet.has(employee));
+      const memberCountLabel = visibleMembers.length === members.length ? `${members.length} nhân viên` : `${visibleMembers.length}/${members.length} nhân viên trang này`;
+      return `<details class="employee-subgroup" open><summary><span>▸ ${esc(department)}</span><b>${memberCountLabel}</b></summary>${renderEmployeeTable(visibleMembers)}</details>`;
+    }).join("");
+    return `<details class="employee-group" open><summary><span>▸ ${esc(workplace)}</span><b>${workplaceCountLabel}</b></summary>${departmentRows}</details>`;
+  }).join("");
+  const pageEndIndex = Math.min(pageStartIndex + pageEmployees.length, orderedEmployees.length);
+  const firstVisiblePage = Math.max(1, Math.min(state.employeePage - 2, totalPages - 4));
+  const visiblePages = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstVisiblePage + index);
+  const pagination = orderedEmployees.length ? `<div class="employee-pagination"><div class="employee-pagination-summary"><strong>${pageStartIndex + 1}–${pageEndIndex}</strong><span>trên ${orderedEmployees.length} nhân viên${query ? " phù hợp" : ""}</span></div><nav class="employee-pagination-controls" aria-label="Phân trang danh sách nhân viên"><button type="button" class="employee-page-button" data-employee-page="first" title="Trang đầu" aria-label="Trang đầu" ${state.employeePage === 1 ? "disabled" : ""}>≪</button><button type="button" class="employee-page-button" data-employee-page="prev" title="Trang trước" aria-label="Trang trước" ${state.employeePage === 1 ? "disabled" : ""}>‹</button>${visiblePages.map(page => `<button type="button" class="employee-page-button${page === state.employeePage ? " active" : ""}" data-employee-page="${page}" aria-label="Trang ${page}" ${page === state.employeePage ? 'aria-current="page"' : ""}>${page}</button>`).join("")}<button type="button" class="employee-page-button" data-employee-page="next" title="Trang sau" aria-label="Trang sau" ${state.employeePage === totalPages ? "disabled" : ""}>›</button><button type="button" class="employee-page-button" data-employee-page="last" title="Trang cuối" aria-label="Trang cuối" ${state.employeePage === totalPages ? "disabled" : ""}>≫</button></nav></div>` : "";
   return `<div class="page-title-row"><div><button class="link-btn" data-back-to-management>← Quay lại</button><h2 style="margin-top:8px">Danh sách nhân viên</h2><p>${state.employees.length} nhân viên${query ? ` • ${rows.length} kết quả` : ""}</p></div><div class="employee-page-actions"><label class="employee-search"><span>⌕</span><input id="employeeSearch" value="${esc(state.search)}" placeholder="Tìm tên, mã NV, số điện thoại..."></label><button class="btn btn-light" data-action="delete-all-employees" ${state.employees.length ? "" : "disabled"}>Xóa toàn bộ</button><button class="btn btn-primary" data-action="upload-employees">↑ Tải lên Excel</button></div></div>
- <div class="employee-groups">${groupedRows || `<div class="card"><div class="empty"><strong>Chưa có nhân viên</strong>Hãy tải lên file Excel danh sách nhân viên.</div></div>`}</div><div class="pagination"><button class="small-btn" data-employee-page="prev" ${state.employeePage === 1 ? "disabled" : ""}>← Trước</button><span>Trang ${state.employeePage} / ${totalPages}</span><button class="small-btn" data-employee-page="next" ${state.employeePage === totalPages ? "disabled" : ""}>Sau →</button></div>`;
+ <div class="employee-groups">${groupedRows || `<div class="card"><div class="empty"><strong>Chưa có nhân viên</strong>Hãy tải lên file Excel danh sách nhân viên.</div></div>`}</div>${pagination}`;
 }
 
 function managementPage() {
@@ -640,7 +730,7 @@ function managementPage() {
     { page: "employees", title: "Nhân viên", icon: "♟", desc: "Danh sách nhân viên và thông tin chi tiết" }
   ];
 
-  return `<div class="page-title-row"><div><h2>Quản lý</h2><p>Nhóm chức năng vận hành và điều hành</p></div></div>
+  return `<div class="page-title-row"><div><h2>QUẢN LÝ</h2><p>Nhóm chức năng vận hành và điều hành</p></div></div>
   <div class="grid-2">${items.map(item => `<button class="quick-tool" data-page-jump="${item.page}" style="padding:18px 16px; min-height:120px; align-items:flex-start"><span class="quick-tool-icon" style="font-size:18px">${item.icon}</span><span><strong>${item.title}</strong><small>${item.desc}</small></span></button>`).join("")}</div>`;
 }
 
@@ -701,7 +791,7 @@ function bindPage() {
   $$('[data-system-focus]').forEach(b => b.onclick = () => { state.systemFocus = b.dataset.systemFocus || ""; render() });
   $$('[data-system-level]').forEach(b => b.onclick = () => { state.systemLevel = b.dataset.systemLevel; render() });
   $("#systemCatalogSearch")?.addEventListener("input", event => { state.systemQuery = event.target.value; const cursor = event.target.selectionStart; render(); const input = $("#systemCatalogSearch"); if (input) { input.focus(); input.setSelectionRange(cursor, cursor) } });
-  $("#systemRequestStatus")?.addEventListener("change", event => { state.systemRequestStatus = event.target.value; render() });
+  $("#systemRequestStatus")?.addEventListener("change", event => { state.systemRequestStatus = event.target.value; state.listPages["requests-system"] = 1; state.listPages["requests-server"] = 1; render() });
   $$('[data-action="export-excel"]').forEach(b => b.onclick = exportExcel);
   $$('[data-action="export-pdf"]').forEach(b => b.onclick = exportPdf);
   $$('[data-edit-maintenance]').forEach(b => b.onclick = () => openMaintenanceModal(state.maintenance.find(row => row.id === b.dataset.editMaintenance)));
@@ -712,16 +802,35 @@ function bindPage() {
   $$('[data-edit-ticket]').forEach(b => b.onclick = () => { const ticket = state.tickets.find(item => item.id === b.dataset.editTicket); if (ticket) openTicketModal(ticket.type, ticket) });
   $$('[data-delete-ticket]').forEach(b => b.onclick = () => deleteTicket(b.dataset.deleteTicket));
   $$('[data-approve-ticket]').forEach(button => button.onclick = () => approveTicket(button.dataset.approveTicket, button.dataset.decision));
-  $("#ticketType")?.addEventListener("change", event => { state.ticketType = event.target.value; render() });
-  $("#ticketPriority")?.addEventListener("change", event => { state.ticketPriority = event.target.value; render() });
+  $("#ticketType")?.addEventListener("change", event => { state.ticketType = event.target.value; state.listPages.tickets = 1; render() });
+  $("#ticketPriority")?.addEventListener("change", event => { state.ticketPriority = event.target.value; state.listPages.tickets = 1; render() });
   $$('[data-delete-employee]').forEach(b => b.onclick = () => deleteEmployee(b.dataset.deleteEmployee));
   $$('[data-action="delete-all-employees"]').forEach(b => b.onclick = deleteAllEmployees);
-  $$('[data-employee-page]').forEach(b => b.onclick = () => { const query = normalizeEmployeeSearch(state.search); const totalPages = Math.max(1, Math.ceil(state.employees.filter(employee => normalizeEmployeeSearch(`${employee.name || ""} ${employee.employeeCode || employee.code || employee.maNV || ""} ${employee.phone || ""}`).includes(query)).length / 50)); state.employeePage = Math.max(1, Math.min(b.dataset.employeePage === "next" ? state.employeePage + 1 : state.employeePage - 1, totalPages)); render() });
+  $$('[data-employee-page]').forEach(button => button.onclick = () => {
+    const query = normalizeEmployeeSearch(state.search);
+    const matchingCount = state.employees.filter(employee => normalizeEmployeeSearch(`${employee.name || ""} ${employee.employeeCode || employee.code || employee.maNV || ""} ${employee.phone || ""}`).includes(query)).length;
+    const totalPages = Math.max(1, Math.ceil(matchingCount / EMPLOYEE_PAGE_SIZE));
+    const requestedPage = button.dataset.employeePage;
+    const page = requestedPage === "first" ? 1 : requestedPage === "last" ? totalPages : requestedPage === "next" ? state.employeePage + 1 : requestedPage === "prev" ? state.employeePage - 1 : Number(requestedPage);
+    state.employeePage = Math.max(1, Math.min(page || 1, totalPages));
+    render();
+    document.querySelector(`[data-employee-page="${state.employeePage}"]`)?.focus();
+  });
+  $$('[data-list-page]').forEach(button => button.onclick = () => {
+    const listKey = button.dataset.listPage;
+    const currentPage = state.listPages[listKey] || 1;
+    const totalPages = Number(button.dataset.totalPages) || 1;
+    const action = button.dataset.pageAction;
+    const page = action === "first" ? 1 : action === "last" ? totalPages : action === "next" ? currentPage + 1 : action === "prev" ? currentPage - 1 : Number(action);
+    state.listPages[listKey] = Math.max(1, Math.min(page || 1, totalPages));
+    render();
+    document.querySelector(`[data-list-page="${listKey}"][data-page-action="${state.listPages[listKey]}"]`)?.focus();
+  });
   $("#employeeSearch")?.addEventListener("input", event => { state.search = event.target.value; state.employeePage = 1; const cursor = event.target.selectionStart; render(); const input = $("#employeeSearch"); if (input) { input.focus(); input.setSelectionRange(cursor, cursor) } });
   $$('[data-back-to-management]').forEach(b => b.onclick = () => { state.page = "management"; render(); });
   $$("[data-page-jump]").forEach(b => b.onclick = () => { state.page = b.dataset.pageJump; render() });
   $$("[data-action='new-ticket']").forEach(b => b.onclick = () => openTicketModal(b.dataset.ticketType || b.dataset.type || "hardware", null, b.dataset.ticketSystem || ""));
-  $$("[data-hardware-focus]").forEach(b => b.onclick = () => { state.hardwareFocus = b.dataset.hardwareFocus || ""; render(); });
+  $$("[data-open-hardware-details]").forEach(button => button.onclick = () => $("#hardwareDetailsModal")?.classList.remove("hidden"));
   $$("[data-action='new-asset']").forEach(b => b.onclick = openAssetModal);
   $$("[data-action='new-department']").forEach(b => b.onclick = openDepartmentModal);
   $$("[data-action='new-maintenance']").forEach(() => toast("Module lịch bảo trì chi tiết sẽ dùng collection maintenance.", "success"));
@@ -1455,7 +1564,7 @@ $("#employeeUpload").onchange = async e => {
   try { await uploadEmployees(file) } catch (err) { toast(err.message || "Không đọc được file Excel nhân viên", "error") }
 };
 $("#createTicketBtn").onclick = () => openTicketModal("hardware");
-$("#globalSearch").oninput = e => { state.search = e.target.value; state.employeePage = 1; if (["tickets", "employees"].includes(state.page)) render() };
+$("#globalSearch").oninput = e => { state.search = e.target.value; state.employeePage = 1; state.listPages = {}; if (["tickets", "employees", "storeVisits", "systems", "server"].includes(state.page)) render() };
 $("#refreshBtn").onclick = () => { render(); toast("Đã làm mới", "success") };
 $("#mobileMenu").onclick = () => $("#sidebar").classList.toggle("open");
 $("#userMenu").onclick = logout;

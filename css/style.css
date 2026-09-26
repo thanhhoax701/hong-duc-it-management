@@ -2522,6 +2522,118 @@ td small {
     padding: 0 10px 10px
 }
 
+.employee-table {
+    min-width: 1120px
+}
+
+.employee-table th,
+.employee-table td {
+    white-space: nowrap
+}
+
+.employee-table th:nth-child(3),
+.employee-table td:nth-child(3) {
+    min-width: 145px
+}
+
+.employee-table th:nth-child(5),
+.employee-table td:nth-child(5) {
+    min-width: 170px;
+    white-space: normal
+}
+
+.employee-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 2px;
+    border-top: 1px solid var(--line)
+}
+
+.employee-pagination-summary {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 10px
+}
+
+.employee-pagination-summary strong {
+    color: var(--text);
+    font-size: 11px
+}
+
+.employee-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px
+}
+
+.employee-page-button {
+    display: grid;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 7px;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease
+}
+
+.employee-page-button:hover:not(:disabled):not(.active) {
+    border-color: #d71920;
+    background: #fff1f2;
+    color: #b9151b;
+    box-shadow: 0 2px 6px rgba(215, 25, 32, .12)
+}
+
+.employee-page-button.active {
+    border-color: #d71920;
+    background: #d71920;
+    color: #fff
+}
+
+.employee-page-button.active:hover:not(:disabled) {
+    border-color: #b9151b;
+    background: #b9151b;
+    color: #fff;
+    box-shadow: 0 2px 7px rgba(185, 21, 27, .24)
+}
+
+.employee-page-button:disabled {
+    opacity: .4;
+    cursor: not-allowed
+}
+
+.employee-page-button:focus-visible {
+    outline: 2px solid #152330;
+    outline-offset: 2px
+}
+
+@media(prefers-reduced-motion:reduce) {
+    .employee-page-button {
+        transition: none
+    }
+}
+
+@media(max-width:600px) {
+    .employee-pagination {
+        align-items: flex-start;
+        flex-direction: column
+    }
+
+    .employee-pagination-controls {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap
+    }
+}
+
 .form-grid .span-2 {
     grid-column: 1 / -1
 }
