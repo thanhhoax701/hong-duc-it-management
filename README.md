@@ -58,12 +58,14 @@ Collection `users` dùng document trùng Firebase Auth UID. Mỗi document cần
 
 ```json
 {
-	"role": "admin | it | department_manager | requester",
+	"role": "admin | it | department_manager | requester | cskh",
 	"department": "Tên đơn vị"
 }
 ```
 
 Có thể dùng custom claim `role` thay cho trường `role`; `department` vẫn lấy từ document người dùng khi cần giới hạn theo phòng ban.
+
+Role `cskh` chỉ được xem hai mục **Đơn vị / Phòng ban** và **Nhân viên**; quyền Firestore tương ứng chỉ cho phép đọc hai collection này, không cho ghi.
 
 ### 5. Ticket
 

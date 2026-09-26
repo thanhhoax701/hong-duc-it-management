@@ -8,6 +8,8 @@ let user = null;
 let state = { page: "hardware", tickets: [], assets: [], departments: [], employees: [], maintenance: [], storeVisits: [], ticketHistory: [], comments: [], notifications: [], approvals: [], backups: [], uptime: [], audit: [], search: "", ticketType: "", ticketPriority: "", employeePage: 1, showAllEmployees: false, listPages: {}, systemFocus: "", systemLevel: "all", systemQuery: "", systemRequestStatus: "" };
 const EMPLOYEE_PAGE_SIZE = 50;
 const LIST_PAGE_SIZE = 20;
+const CSKH_ALLOWED_PAGES = new Set(["management", "departments", "employees"]);
+const CSKH_ALLOWED_COLLECTIONS = new Set(["departments", "employees"]);
 let currentRole = "requester";
 let currentDepartment = "";
 let unsubscribers = [];
@@ -77,7 +79,14 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 
 function actorName() { return user?.email || user?.displayName || "demo" }
 function isItEmail(email = user?.email || "") { return /^it(?:[+@])/i.test(String(email).trim()) }
-function canManage() { return ["admin", "it"].includes(String(currentRole).toLowerCase()) || isItEmail() }
+function isCskhRole(role) { return ["cskh", "customer_service", "customer-service"].includes(String(role || "").trim().toLowerCase()) }
+function isCskhEmail(email = user?.email || "") { return /^cskh(?:[+@._-]|$)/i.test(String(email).trim()) }
+function isCskh() { return isCskhRole(currentRole) || isCskhEmail() }
+function canAccessPage(page) { return !isCskh() || CSKH_ALLOWED_PAGES.has(page) }
+function clearCskhRestrictedData() {
+  ["tickets", "assets", "maintenance", "storeVisits", "ticketHistory", "comments", "notifications", "approvals", "backups", "uptime", "audit"].forEach(name => { state[name] = [] });
+}
+function canManage() { return !isCskh() && (["admin", "it"].includes(String(currentRole).toLowerCase()) || isItEmail()) }
 async function notify(recipient, title, message, ticketId = "", type = "workflow") {
   if (!recipient) return;
   try { await addDoc("notifications", { recipient, title, message, ticketId, targetId: ticketId, type, read: false, createdAt: Date.now(), createdAtText: nowText() }) } catch (error) { console.warn("Không tạo được thông báo", error) }
@@ -101,14 +110,14 @@ async function loadUserRole(fs) {
   if (!user) return;
   try {
     const token = await user.getIdTokenResult();
-    currentRole = token.claims.role || "";
-    if (!currentRole) {
-      const profile = await fs.getDoc(fs.doc(db, "users", user.uid));
-      if (profile.exists()) { currentRole = profile.data().role || "requester"; currentDepartment = profile.data().department || ""; }
-    } else {
-      const profile = await fs.getDoc(fs.doc(db, "users", user.uid));
-      if (profile.exists()) currentDepartment = profile.data().department || "";
-    }
+    const claimedRole = token.claims.role || "";
+    const profile = await fs.getDoc(fs.doc(db, "users", user.uid));
+    const profileData = profile.exists() ? profile.data() : {};
+    const profileRole = profileData.role || "";
+    currentDepartment = profileData.department || "";
+    currentRole = isCskhRole(claimedRole) || isCskhRole(profileRole) || isCskhEmail()
+      ? "cskh"
+      : claimedRole || profileRole || "requester";
     if (!currentRole || currentRole === "requester") currentRole = isItEmail() ? "it" : "requester";
   } catch (error) { console.warn("Không đọc được vai trò người dùng", error); if (isItEmail()) currentRole = "it" }
 }
@@ -134,8 +143,12 @@ async function loadFirebase() {
     firebaseReady = true;
     authMod.onAuthStateChanged(auth, u => {
       user = u;
-      if (u) { loadUserRole(fsMod).then(() => { showApp(); subscribeData(fsMod) }); }
-      else { $("#appShell").classList.add("hidden"); $("#loginScreen").classList.remove("hidden"); }
+      unsubscribers.forEach(unsubscribe => unsubscribe());
+      unsubscribers = [];
+      if (u) {
+        $("#appShell").classList.add("hidden");
+        loadUserRole(fsMod).then(() => { if (isCskh()) { clearCskhRestrictedData(); state.page = "management"; } showApp(); subscribeData(fsMod) });
+      } else { $("#appShell").classList.add("hidden"); $("#loginScreen").classList.remove("hidden"); }
     });
   } catch (e) {
     console.error(e);
@@ -174,7 +187,9 @@ function showApp() {
 function subscribeData(fs) {
   unsubscribers.forEach(fn => fn()); unsubscribers = [];
   const collections = ["tickets", "assets", "departments", "employees", "maintenance", "storeVisits", "ticketHistory", "comments", "notifications", "approvals", "backups", "uptime", "audit"];
+  if (isCskh()) clearCskhRestrictedData();
   collections.forEach(name => {
+    if (isCskh() && !CSKH_ALLOWED_COLLECTIONS.has(name)) return;
     if (["maintenance", "storeVisits", "audit", "backups", "uptime"].includes(name) && !canManage()) return;
     let q = fs.collection(db, name);
     if (name === "tickets" && currentRole === "requester") q = fs.query(q, fs.where("createdByUid", "==", user.uid));
@@ -192,6 +207,7 @@ function subscribeData(fs) {
 
 function render() {
   checkDueNotifications();
+  if (!canAccessPage(state.page)) state.page = "management";
   const pages = {
     hardware: ["Phần cứng", "Yêu cầu → Kiểm tra → Xử lý → Mua sắm → Bàn giao"],
     systems: ["Hệ thống", "Giám sát → Phân quyền → Tích hợp → Bảo trì → Sao lưu"],
@@ -214,7 +230,7 @@ function render() {
   const pageSubtitle = $("#pageSubtitle");
   if (pageTitle) pageTitle.textContent = t;
   if (pageSubtitle) pageSubtitle.textContent = sub;
-  $$(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.page === state.page));
+  $$(".nav-item").forEach(b => { b.classList.toggle("hidden", isCskh() && b.dataset.page !== "management"); b.classList.toggle("active", b.dataset.page === state.page) });
   const navOpenCount = $("#navOpenCount");
   if (navOpenCount) navOpenCount.textContent = state.tickets.filter(t => t.step < 5).length;
   const map = { hardware: hardwarePage, systems: systemsPage, server: serverPage, management: managementPage, tickets: ticketsPage, assets: assetsPage, maintenance: maintenancePage, storeVisits: storeVisitsPage, departments: departmentsPage, employees: employeesPage, reports: reportsPage, settings: settingsPage };
@@ -691,7 +707,7 @@ function departmentsPage() {
         const leaders = members.filter(employee => employeeRoleRank(employee, true, department) <= 4).sort((a, b) => employeeRoleRank(a, true, department) - employeeRoleRank(b, true, department) || String(a.name || "").localeCompare(String(b.name || ""), "vi"));
         const saved = state.departments.find(item => normalizeDepartmentName(item.name) === normalizeDepartmentName(department));
         const managers = leaders.length ? leaders : saved?.managers?.length ? saved.managers : [];
-        const controls = saved?.id ? `<div><button class="small-btn icon-action" title="Sửa" aria-label="Sửa phòng ban" data-edit-dept="${esc(saved.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa phòng ban" data-delete-dept="${esc(saved.id)}">×</button></div>` : "";
+        const controls = !isCskh() && saved?.id ? `<div><button class="small-btn icon-action" title="Sửa" aria-label="Sửa phòng ban" data-edit-dept="${esc(saved.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa phòng ban" data-delete-dept="${esc(saved.id)}">×</button></div>` : "";
         const managerRows = managers.length ? managers.map(manager => `<p class="muted" style="font-size:9px;margin:8px 0;white-space:pre-line"><b>${esc(manager.name)}</b> - ${esc(manager.title || "Chưa cập nhật")}<br>Mã NV: ${esc(manager.employeeCode || "-")} | SĐT: ${esc(manager.phone || "-")}</p>`).join("") : `<p class="muted" style="font-size:9px;margin:8px 0">Chưa có nhân sự quản lý</p>`;
         const ticketCount = state.tickets.filter(ticket => canonicalEmployeeDepartment(ticket.department, true) === department).length;
         return `<div class="card department-office-card"><div style="display:flex;justify-content:space-between"><span class="badge badge-blue">VP-${String(index + 1).padStart(2, "0")}</span>${controls}</div><h3 style="font-size:13px;margin:14px 0 4px">${esc(department)}</h3>${managerRows}<div style="margin-top:13px;font-size:9px;color:#778792">Nhân viên: <b>${members.length}</b> · Ticket: <b>${ticketCount}</b></div></div>`;
@@ -712,11 +728,11 @@ function departmentsPage() {
     }).sort((a, b) => a.rank - b.rank || String(a.employee.name || "").localeCompare(String(b.employee.name || ""), "vi"));
     const managers = rankedManagers.length ? rankedManagers.map(({ employee, managerTitle }) => ({ ...employee, managerTitle })) : (unit.saved?.managers?.length ? unit.saved.managers : [{ name: unit.saved?.manager, title: unit.saved?.title, employeeCode: unit.saved?.employeeCode, phone: unit.saved?.phone }].filter(manager => manager.name));
     const code = unit.saved?.code || (unit.isOffice ? "A01" : unit.name.match(/^(?:H\d{1,2}|HD[A-Z0-9]+)/i)?.[0]) || "ĐV";
-    const controls = unit.saved?.id ? `<div><button class="small-btn icon-action" title="Sửa" aria-label="Sửa đơn vị" data-edit-dept="${esc(unit.saved.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa đơn vị" data-delete-dept="${esc(unit.saved.id)}">×</button></div>` : "";
+    const controls = !isCskh() && unit.saved?.id ? `<div><button class="small-btn icon-action" title="Sửa" aria-label="Sửa đơn vị" data-edit-dept="${esc(unit.saved.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa đơn vị" data-delete-dept="${esc(unit.saved.id)}">×</button></div>` : "";
     const managerRows = managers.length ? managers.map(manager => `<p class="muted" style="font-size:9px;margin:8px 0;white-space:pre-line"><b>${esc(manager.name)}</b> - ${esc(manager.managerTitle || manager.title || "Chưa cập nhật")}<br>Mã NV: ${esc(manager.employeeCode || "-")} | SĐT: ${esc(manager.phone || "-")}</p>`).join("") : `<p class="muted" style="font-size:9px">${unit.isOffice ? "Chưa có Giám đốc / Phó Giám đốc" : "Chưa có Cửa hàng trưởng / Cửa hàng phó"}</p>`;
     return `<div class="card"><div style="display:flex;justify-content:space-between"><span class="badge badge-blue">${esc(code)}</span>${controls}</div><h3 style="font-size:13px;margin:14px 0 4px">${esc(unit.name)}</h3>${managerRows}<div style="margin-top:13px;font-size:9px;color:#778792">Nhân viên: <b>${unit.employees.length}</b></div></div>`;
   }).join("") || `<div class="card"><div class="empty"><strong>Chưa có đơn vị</strong>Hãy tải lên danh sách nhân viên có thông tin nơi làm việc.</div></div>`;
-  return `<div class="page-title-row management-page-header"><div class="management-page-title"><button class="link-btn" data-back-to-management>← Quay lại</button><h2>Đơn vị / Phòng ban</h2><p>${units.length} đơn vị theo nơi làm việc</p></div><div class="management-page-actions"><button class="btn btn-light" data-action="upload-departments">↑ Tải lên Excel</button><button class="btn btn-primary" data-action="new-department">＋ Thêm đơn vị</button></div></div>
+  return `<div class="page-title-row management-page-header"><div class="management-page-title"><button class="link-btn" data-back-to-management>← Quay lại</button><h2>Đơn vị / Phòng ban</h2><p>${units.length} đơn vị theo nơi làm việc</p></div>${isCskh() ? "" : `<div class="management-page-actions"><button class="btn btn-light" data-action="upload-departments">↑ Tải lên Excel</button><button class="btn btn-primary" data-action="new-department">＋ Thêm đơn vị</button></div>`}</div>
  <div class="grid-3">${unitCards}</div>${page.pagination}`;
 }
 
@@ -776,7 +792,9 @@ function employeesPage() {
     const secondaryRank = rankTitle(`${employee.detailedTitle || ""} ${employee.actingTitle || ""}`);
     return secondaryRank < 0 ? roles.length : secondaryRank;
   };
-  const renderEmployeeTable = employees => `<div class="table-wrap"><table class="employee-table"><thead><tr><th>Trạng thái</th><th>Mã</th><th>Họ và tên</th><th>ID chấm công</th><th>Chức danh</th><th>Điện thoại</th><th>Ngày sinh</th><th>Giới tính</th><th>Email</th><th></th></tr></thead><tbody>${employees.map(employee => `<tr><td><span class="badge badge-green">${esc(employee.status || "Đang làm việc")}</span></td><td><b>${esc(employee.employeeCode)}</b></td><td><b>${esc(employee.name)}</b></td><td>${esc(employee.attendanceId || "-")}</td><td>${esc(employee.title || "-")}<small>${esc(employee.detailedTitle || "")}${employee.actingTitle ? `<br>Kiêm nhiệm: ${esc(employee.actingTitle)}` : ""}</small></td><td>${esc(employee.phone || "-")}</td><td>${esc(employee.birthDate || "-")}</td><td>${esc(employee.gender || "-")}</td><td>${esc(employee.email || "-")}</td><td class="row-actions"><button class="small-btn icon-action" title="Sửa" aria-label="Sửa nhân viên" data-edit-employee="${esc(employee.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa nhân viên" data-delete-employee="${esc(employee.id)}">×</button></td></tr>`).join("")}</tbody></table></div>`;
+  const employeeActionsHeader = isCskh() ? "" : "<th></th>";
+  const employeeActionsCell = employee => isCskh() ? "" : `<td class="row-actions"><button class="small-btn icon-action" title="Sửa" aria-label="Sửa nhân viên" data-edit-employee="${esc(employee.id)}">✎</button><button class="small-btn icon-action danger" title="Xóa" aria-label="Xóa nhân viên" data-delete-employee="${esc(employee.id)}">×</button></td>`;
+  const renderEmployeeTable = employees => `<div class="table-wrap"><table class="employee-table"><thead><tr><th>Trạng thái</th><th>Mã</th><th>Họ và tên</th><th>ID chấm công</th><th>Chức danh</th><th>Điện thoại</th><th>Ngày sinh</th><th>Giới tính</th><th>Email</th>${employeeActionsHeader}</tr></thead><tbody>${employees.map(employee => `<tr><td><span class="badge badge-green">${esc(employee.status || "Đang làm việc")}</span></td><td><b>${esc(employee.employeeCode)}</b></td><td><b>${esc(employee.name)}</b></td><td>${esc(employee.attendanceId || "-")}</td><td>${esc(employee.title || "-")}<small>${esc(employee.detailedTitle || "")}${employee.actingTitle ? `<br>Kiêm nhiệm: ${esc(employee.actingTitle)}` : ""}</small></td><td>${esc(employee.phone || "-")}</td><td>${esc(employee.birthDate || "-")}</td><td>${esc(employee.gender || "-")}</td><td>${esc(employee.email || "-")}</td>${employeeActionsCell(employee)}</tr>`).join("")}</tbody></table></div>`;
   const sortedWorkplaces = [...workplaces.values()].sort((a, b) => workplaceOrder(a.workplace, b.workplace));
   const groupedWorkplaces = sortedWorkplaces.map(({ workplace, employees }) => {
     const isOffice = employeeWorkplaceSortKey(workplace)[0] === 0;
@@ -821,7 +839,7 @@ function employeesPage() {
   const visiblePages = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstVisiblePage + index);
   const pageControls = state.showAllEmployees ? "" : `<nav class="employee-pagination-controls" aria-label="Phân trang danh sách nhân viên"><button type="button" class="employee-page-button" data-employee-page="first" title="Trang đầu" aria-label="Trang đầu" ${state.employeePage === 1 ? "disabled" : ""}>≪</button><button type="button" class="employee-page-button" data-employee-page="prev" title="Trang trước" aria-label="Trang trước" ${state.employeePage === 1 ? "disabled" : ""}>‹</button>${visiblePages.map(page => `<button type="button" class="employee-page-button${page === state.employeePage ? " active" : ""}" data-employee-page="${page}" aria-label="Trang ${page}" ${page === state.employeePage ? 'aria-current="page"' : ""}>${page}</button>`).join("")}<button type="button" class="employee-page-button" data-employee-page="next" title="Trang sau" aria-label="Trang sau" ${state.employeePage === totalPages ? "disabled" : ""}>›</button><button type="button" class="employee-page-button" data-employee-page="last" title="Trang cuối" aria-label="Trang cuối" ${state.employeePage === totalPages ? "disabled" : ""}>≫</button></nav>`;
   const pagination = orderedEmployees.length ? `<div class="employee-pagination"><div class="employee-pagination-summary"><strong>${pageStartIndex + 1}–${pageEndIndex}</strong><span>trên ${orderedEmployees.length} nhân viên${query ? " phù hợp" : ""}</span></div>${pageControls}</div>` : "";
-  return `<div class="page-title-row management-page-header"><div class="management-page-title"><button class="link-btn" data-back-to-management>← Quay lại</button><h2>Danh sách nhân viên</h2><p>${state.employees.length} nhân viên${query ? ` • ${rows.length} kết quả` : ""}</p></div><div class="employee-page-actions"><label class="employee-search"><span>⌕</span><input id="employeeSearch" value="${esc(state.search)}" placeholder="Tìm tên, mã NV, số điện thoại..."></label><button class="btn btn-light" type="button" data-toggle-all-employees>${state.showAllEmployees ? "Phân trang (50/trang)" : `Hiển thị tất cả (${rows.length})`}</button><button class="btn btn-light" data-action="delete-all-employees" ${state.employees.length ? "" : "disabled"}>Xóa toàn bộ</button><button class="btn btn-primary" data-action="upload-employees">↑ Tải lên Excel</button></div></div>
+  return `<div class="page-title-row management-page-header"><div class="management-page-title"><button class="link-btn" data-back-to-management>← Quay lại</button><h2>Danh sách nhân viên</h2><p>${state.employees.length} nhân viên${query ? ` • ${rows.length} kết quả` : ""}</p></div><div class="employee-page-actions"><label class="employee-search"><span>⌕</span><input id="employeeSearch" value="${esc(state.search)}" placeholder="Tìm tên, mã NV, số điện thoại..."></label><button class="btn btn-light" type="button" data-toggle-all-employees>${state.showAllEmployees ? "Phân trang (50/trang)" : `Hiển thị tất cả (${rows.length})`}</button>${isCskh() ? "" : `<button class="btn btn-light" data-action="delete-all-employees" ${state.employees.length ? "" : "disabled"}>Xóa toàn bộ</button><button class="btn btn-primary" data-action="upload-employees">↑ Tải lên Excel</button>`}</div></div>
  <div class="employee-groups">${groupedRows || `<div class="card"><div class="empty"><strong>Chưa có nhân viên</strong>Hãy tải lên file Excel danh sách nhân viên.</div></div>`}</div>${pagination}`;
 }
 
@@ -833,9 +851,11 @@ function managementPage() {
     { page: "departments", title: "Đơn vị / Phòng ban", icon: "♙", desc: "Quản lý đơn vị, người phụ trách và bộ phận" },
     { page: "employees", title: "Nhân viên", icon: "♟", desc: "Danh sách nhân viên và thông tin chi tiết" }
   ];
+  const visibleItems = isCskh() ? items.filter(item => ["departments", "employees"].includes(item.page)) : items;
+  const description = isCskh() ? "Tra cứu đơn vị và danh sách nhân viên" : "Quản lý tài sản, lịch vận hành và cơ cấu nhân sự";
 
-  return `<div class="page-title-row management-home-header"><div><span class="management-home-eyebrow">VẬN HÀNH NỘI BỘ</span><h2>QUẢN LÝ</h2><p>Quản lý tài sản, lịch vận hành và cơ cấu nhân sự</p></div><span class="management-home-count">${items.length} chức năng</span></div>
-  <nav class="management-tools-grid" aria-label="Chức năng quản lý">${items.map(item => `<button class="management-tool" data-page-jump="${item.page}"><span class="management-tool-icon" aria-hidden="true">${item.icon}</span><span class="management-tool-copy"><strong>${item.title}</strong><small>${item.desc}</small></span><span class="management-tool-arrow" aria-hidden="true">→</span></button>`).join("")}</nav>`;
+  return `<div class="page-title-row management-home-header"><div><span class="management-home-eyebrow">VẬN HÀNH NỘI BỘ</span><h2>QUẢN LÝ</h2><p>${description}</p></div><span class="management-home-count">${visibleItems.length} chức năng</span></div>
+  <nav class="management-tools-grid" aria-label="Chức năng quản lý">${visibleItems.map(item => `<button class="management-tool" data-page-jump="${item.page}"><span class="management-tool-icon" aria-hidden="true">${item.icon}</span><span class="management-tool-copy"><strong>${item.title}</strong><small>${item.desc}</small></span><span class="management-tool-arrow" aria-hidden="true">→</span></button>`).join("")}</nav>`;
 }
 
 function reportsPage() {
@@ -937,7 +957,11 @@ function bindPage() {
   });
   $("#employeeSearch")?.addEventListener("input", event => { state.search = event.target.value; state.employeePage = 1; const cursor = event.target.selectionStart; render(); const input = $("#employeeSearch"); if (input) { input.focus(); input.setSelectionRange(cursor, cursor) } });
   $$('[data-back-to-management]').forEach(b => b.onclick = () => { state.page = "management"; render(); });
-  $$("[data-page-jump]").forEach(b => b.onclick = () => { state.page = b.dataset.pageJump; render() });
+  $$('[data-page-jump]').forEach(button => button.onclick = () => {
+    if (!canAccessPage(button.dataset.pageJump)) { toast("Tài khoản CSKH chỉ được xem Đơn vị / Phòng ban và Nhân viên", "error"); return }
+    state.page = button.dataset.pageJump;
+    render();
+  });
   $$("[data-action='new-ticket']").forEach(b => b.onclick = () => openTicketModal(b.dataset.ticketType || b.dataset.type || "hardware", null, b.dataset.ticketSystem || ""));
   $$("[data-open-hardware-details]").forEach(button => button.onclick = () => $("#hardwareDetailsModal")?.classList.remove("hidden"));
   $$("[data-open-system-details]").forEach(button => button.onclick = () => $("#systemDetailsModal")?.classList.remove("hidden"));
@@ -1104,7 +1128,9 @@ async function saveStoreVisit(e) {
 }
 
 async function saveDepartment(e) {
-  e.preventDefault(); const form = e.target; const id = form.elements.id.value; const data = { name: form.elements.name.value.trim(), code: form.elements.code.value.trim(), managers: [...form.querySelectorAll(".manager-row")].map(row => ({ name: row.querySelector("[data-field='name']").value.trim(), title: row.querySelector("[data-field='title']").value.trim(), employeeCode: row.querySelector("[data-field='employeeCode']").value.trim(), phone: row.querySelector("[data-field='phone']").value.trim() })).filter(manager => manager.name), updatedAt: Date.now(), updatedAtText: nowText() };
+  e.preventDefault();
+  if (!canManage()) { toast("Tài khoản này chỉ được xem đơn vị / phòng ban", "error"); return }
+  const form = e.target; const id = form.elements.id.value; const data = { name: form.elements.name.value.trim(), code: form.elements.code.value.trim(), managers: [...form.querySelectorAll(".manager-row")].map(row => ({ name: row.querySelector("[data-field='name']").value.trim(), title: row.querySelector("[data-field='title']").value.trim(), employeeCode: row.querySelector("[data-field='employeeCode']").value.trim(), phone: row.querySelector("[data-field='phone']").value.trim() })).filter(manager => manager.name), updatedAt: Date.now(), updatedAtText: nowText() };
   try { if (id) await updateDocRemote("departments", id, data); else { data.createdAt = Date.now(); data.createdAtText = nowText(); await addDoc("departments", data) } closeModal("departmentModal"); toast(id ? "Đã cập nhật đơn vị" : "Đã thêm đơn vị", "success"); render() } catch (err) { toast(err.message, "error") }
 }
 function addManagerRow(manager = {}) {
@@ -1118,6 +1144,7 @@ function setManagerRows(managers) {
   (managers?.length ? managers : [{}]).forEach(addManagerRow);
 }
 async function uploadDepartments(file) {
+  if (!canManage()) throw new Error("Tài khoản này không được tải lên hoặc chỉnh sửa đơn vị.");
   const xlsx = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm");
   const workbook = xlsx.read(await file.arrayBuffer(), { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -1207,7 +1234,7 @@ async function advanceTicket(id) {
 }
 async function deleteAsset(id) { if (!confirm("Xóa tài sản này?")) return; try { await deleteDocRemote("assets", id); toast("Đã xóa tài sản", "success"); render() } catch (e) { toast(e.message, "error") } }
 async function deleteStoreVisit(id) { if (!confirm("Xóa lịch đi cửa hàng này?")) return; try { await deleteDocRemote("storeVisits", id); toast("Đã xóa lịch", "success"); render() } catch (e) { toast(e.message, "error") } }
-async function deleteDepartment(id) { if (!confirm("Xóa đơn vị này?")) return; try { await deleteDocRemote("departments", id); toast("Đã xóa đơn vị", "success"); render() } catch (e) { toast(e.message, "error") } }
+async function deleteDepartment(id) { if (!canManage()) { toast("Tài khoản này chỉ được xem đơn vị / phòng ban", "error"); return } if (!confirm("Xóa đơn vị này?")) return; try { await deleteDocRemote("departments", id); toast("Đã xóa đơn vị", "success"); render() } catch (e) { toast(e.message, "error") } }
 async function deleteEmployee(id) { if (!canManage()) { toast("Chỉ IT hoặc Admin được xóa nhân viên", "error"); return } if (!confirm("Xóa nhân viên này?")) return; try { await deleteDocRemote("employees", id); toast("Đã xóa nhân viên", "success"); render() } catch (e) { toast(e.message, "error") } }
 async function deleteAllEmployees() {
   if (!canManage()) { toast("Chỉ IT hoặc Admin được xóa danh sách nhân viên", "error"); return }
@@ -1232,10 +1259,13 @@ async function deleteAllEmployees() {
   } catch (e) { toast(e.message, "error") }
 }
 function openEmployeeModal(employee) {
+  if (!canManage()) { toast("Tài khoản này chỉ được xem danh sách nhân viên", "error"); return }
   const form = $("#employeeForm"); form.reset(); form.elements.id.value = employee.id; Object.keys(employee).forEach(key => { if (form.elements[key]) form.elements[key].value = employee[key] ?? "" }); $("#employeeModal").classList.remove("hidden");
 }
 async function saveEmployee(e) {
-  e.preventDefault(); const form = e.target, id = form.elements.id.value; const data = Object.fromEntries(new FormData(form).entries()); delete data.id; data.updatedAt = Date.now(); data.updatedAtText = nowText();
+  e.preventDefault();
+  if (!canManage()) { toast("Tài khoản này chỉ được xem danh sách nhân viên", "error"); return }
+  const form = e.target, id = form.elements.id.value; const data = Object.fromEntries(new FormData(form).entries()); delete data.id; data.updatedAt = Date.now(); data.updatedAtText = nowText();
   const previous = state.employees.find(employee => employee.id === id);
   try { await updateDocRemote("employees", id, data); await syncEmployeeReferences(previous || {}, { ...previous, ...data, id }); closeModal("employeeModal"); toast("Đã cập nhật nhân viên và đồng bộ các form liên quan", "success"); render() } catch (err) { toast(err.message, "error") }
 }
@@ -1329,7 +1359,7 @@ function openStoreVisitModal(row = null, duplicate = false) {
   $("#storeVisitModalTitle").textContent = duplicate ? "Nhân bản lịch đi cửa hàng" : row ? "Chỉnh sửa lịch đi cửa hàng" : "Thêm lịch đi cửa hàng";
   $("#storeVisitModal").classList.remove("hidden");
 }
-function openDepartmentModal(department = null) { const form = $("#departmentForm"); $("#departmentModal").classList.remove("hidden"); form.reset(); form.elements.id.value = department?.id || ""; form.elements.name.value = department?.name || ""; form.elements.code.value = department?.code || ""; $("#departmentModal h2").textContent = department ? "Chỉnh sửa phòng ban / đơn vị" : "Thêm phòng ban / đơn vị"; setManagerRows(department?.managers?.length ? department.managers : department?.manager ? [{ name: department.manager, title: department.title, employeeCode: department.employeeCode, phone: department.phone }] : []) }
+function openDepartmentModal(department = null) { if (!canManage()) { toast("Tài khoản này chỉ được xem đơn vị / phòng ban", "error"); return } const form = $("#departmentForm"); $("#departmentModal").classList.remove("hidden"); form.reset(); form.elements.id.value = department?.id || ""; form.elements.name.value = department?.name || ""; form.elements.code.value = department?.code || ""; $("#departmentModal h2").textContent = department ? "Chỉnh sửa phòng ban / đơn vị" : "Thêm phòng ban / đơn vị"; setManagerRows(department?.managers?.length ? department.managers : department?.manager ? [{ name: department.manager, title: department.title, employeeCode: department.employeeCode, phone: department.phone }] : []) }
 function closeModal(id) { $("#" + id)?.classList.add("hidden") }
 function viewTicket(id) {
   const t = state.tickets.find(x => x.id === id); if (!t) return;
@@ -1681,7 +1711,12 @@ $("#mobileMenu").onclick = () => $("#sidebar").classList.toggle("open");
 $("#userMenu").onclick = logout;
 $("#logoutBtn").onclick = logout;
 
-$$(".nav-item").forEach(b => b.onclick = () => { state.page = b.dataset.page; $("#sidebar").classList.remove("open"); render() });
+$$(".nav-item").forEach(button => button.onclick = () => {
+  if (!canAccessPage(button.dataset.page)) { toast("Tài khoản CSKH chỉ được xem Đơn vị / Phòng ban và Nhân viên", "error"); return }
+  state.page = button.dataset.page;
+  $("#sidebar").classList.remove("open");
+  render();
+});
 $$("[data-close]").forEach(b => b.onclick = () => closeModal(b.dataset.close));
 document.addEventListener("keydown", e => { if (e.key === "Escape") $$(".modal-backdrop").forEach(m => m.classList.add("hidden")) });
 document.addEventListener("submit", event => {

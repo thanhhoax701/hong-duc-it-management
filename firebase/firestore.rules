@@ -20,6 +20,12 @@ service cloud.firestore {
           : "requester";
     }
 
+    function customerService() {
+      return role() in ["cskh", "CSKH", "customer_service", "customer-service"]
+        || (profileExists() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ["cskh", "CSKH", "customer_service", "customer-service"])
+        || (signedIn() && request.auth.token.email.matches("(?i)^cskh([+@._-].*)?$"));
+    }
+
     function department() {
       return profileExists()
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department
@@ -27,8 +33,10 @@ service cloud.firestore {
     }
 
     function adminOrIt() {
-      return role() in ["admin", "it", "Admin", "IT", "IT Admin"]
-        || request.auth.token.email.matches("(?i)^it([+@].*)$");
+      return !customerService() && (
+        role() in ["admin", "it", "Admin", "IT", "IT Admin"]
+        || (signedIn() && request.auth.token.email.matches("(?i)^it([+@].*)$"))
+      );
     }
 
     function manager() {
@@ -41,61 +49,61 @@ service cloud.firestore {
     }
 
     match /tickets/{ticketId} {
-      allow create: if adminOrIt()
+      allow create: if !customerService() && (adminOrIt()
         || (role() == "requester" && request.resource.data.createdByUid == request.auth.uid)
-        || (manager() && request.resource.data.department == department());
-      allow read: if adminOrIt()
+        || (manager() && request.resource.data.department == department()));
+      allow read: if !customerService() && (adminOrIt()
         || (resource.data.createdByUid == request.auth.uid)
-        || (manager() && resource.data.department == department());
-      allow update: if adminOrIt()
+        || (manager() && resource.data.department == department()));
+      allow update: if !customerService() && (adminOrIt()
         || (resource.data.createdByUid == request.auth.uid
           && request.resource.data.createdByUid == resource.data.createdByUid
           && request.resource.data.step == resource.data.step
           && request.resource.data.status == resource.data.status)
         || (manager() && resource.data.department == department()
-          && request.resource.data.department == resource.data.department);
-      allow delete: if adminOrIt();
+          && request.resource.data.department == resource.data.department));
+      allow delete: if !customerService() && adminOrIt();
     }
 
     match /ticketHistory/{historyId} {
-      allow read: if adminOrIt()
+      allow read: if !customerService() && (adminOrIt()
         || (resource.data.createdByUid == request.auth.uid)
-        || (manager() && resource.data.department == department());
-      allow create: if adminOrIt();
+        || (manager() && resource.data.department == department()));
+      allow create: if !customerService() && adminOrIt();
       allow update, delete: if false;
     }
 
     match /comments/{commentId} {
-      allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid;
-      allow update, delete: if adminOrIt() || resource.data.authorUid == request.auth.uid;
+      allow read: if signedIn() && !customerService();
+      allow create: if signedIn() && !customerService() && request.resource.data.authorUid == request.auth.uid;
+      allow update, delete: if !customerService() && (adminOrIt() || resource.data.authorUid == request.auth.uid);
     }
 
     match /notifications/{notificationId} {
-      allow read: if adminOrIt() || resource.data.recipient == request.auth.token.email;
-      allow create: if adminOrIt();
-      allow update: if adminOrIt() || resource.data.recipient == request.auth.token.email;
-      allow delete: if adminOrIt();
+      allow read: if !customerService() && (adminOrIt() || resource.data.recipient == request.auth.token.email);
+      allow create: if !customerService() && adminOrIt();
+      allow update: if !customerService() && (adminOrIt() || resource.data.recipient == request.auth.token.email);
+      allow delete: if !customerService() && adminOrIt();
     }
 
     match /approvals/{approvalId} {
-      allow read: if adminOrIt() || resource.data.approver == request.auth.token.email;
-      allow create: if adminOrIt() || manager();
+      allow read: if !customerService() && (adminOrIt() || resource.data.approver == request.auth.token.email);
+      allow create: if !customerService() && (adminOrIt() || manager());
       allow update, delete: if false;
     }
 
     match /assets/{assetId} {
-      allow read: if adminOrIt() || (manager() && resource.data.department == department());
-      allow create, update, delete: if adminOrIt();
+      allow read: if !customerService() && (adminOrIt() || (manager() && resource.data.department == department()));
+      allow create, update, delete: if !customerService() && adminOrIt();
     }
 
     match /maintenance/{maintenanceId} {
-      allow read, write: if adminOrIt();
+      allow read, write: if !customerService() && adminOrIt();
     }
 
     match /audit/{auditId} {
-      allow read: if role() == "admin";
-      allow create: if adminOrIt();
+      allow read: if !customerService() && role() == "admin";
+      allow create: if !customerService() && adminOrIt();
       allow update, delete: if false;
     }
 
@@ -110,7 +118,7 @@ service cloud.firestore {
     }
 
     match /storeVisits/{visitId} {
-      allow read, write: if adminOrIt();
+      allow read, write: if !customerService() && adminOrIt();
     }
   }
 }
