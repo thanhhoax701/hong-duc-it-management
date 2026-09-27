@@ -843,9 +843,9 @@ function employeesPage() {
     const departmentRows = visibleDepartments.map(({ department, members }) => {
       const visibleMembers = members.filter(employee => pageEmployeeSet.has(employee));
       const memberCountLabel = visibleMembers.length === members.length ? `${members.length} nhân viên` : `${visibleMembers.length}/${members.length} nhân viên trang này`;
-      return `<details class="employee-subgroup"><summary><span>▸ ${esc(department)}</span><b>${memberCountLabel}</b></summary>${renderEmployeeTable(visibleMembers)}</details>`;
+      return `<details class="employee-subgroup"${query ? " open" : ""}><summary><span>▸ ${esc(department)}</span><b>${memberCountLabel}</b></summary>${renderEmployeeTable(visibleMembers)}</details>`;
     }).join("");
-    return `<details class="employee-group"><summary><span>▸ ${esc(workplace)}</span><b>${workplaceCountLabel}</b></summary>${departmentRows}</details>`;
+    return `<details class="employee-group"${query ? " open" : ""}><summary><span>▸ ${esc(workplace)}</span><b>${workplaceCountLabel}</b></summary>${departmentRows}</details>`;
   }).join("");
   const pageEndIndex = Math.min(pageStartIndex + pageEmployees.length, orderedEmployees.length);
   const firstVisiblePage = Math.max(1, Math.min(state.employeePage - 2, totalPages - 4));
