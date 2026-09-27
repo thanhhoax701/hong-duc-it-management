@@ -85,7 +85,7 @@ function userName() {
   if (employee?.name) return employee.name;
   if (isCskhEmail()) return "CSKH";
   if (isItEmail()) return "IT Admin";
-  return user?.email?.split("@")[0] || "IT Admin";
+  return user?.email?.split("@")[0]?.toUpperCase() || "IT Admin";
 }
 function actorName() { return user?.email || user?.displayName || "demo" }
 function isItEmail(email = user?.email || "") { return /^it(?:[+@])/i.test(String(email).trim()) }
@@ -1382,6 +1382,14 @@ function openDepartmentDirectoryModal() {
   $("#departmentDirectoryModal").classList.remove("hidden");
 }
 function closeModal(id) { $("#" + id)?.classList.add("hidden") }
+function openUserProfileModal() {
+  const content = $("#userProfileContent");
+  if (!content) return;
+  const name = userName();
+  const role = isCskh() ? "CSKH" : currentRole === "it" ? "IT" : currentRole || "Requester";
+  content.innerHTML = `<div class="user-profile-summary"><div class="avatar">${esc(name.split(" ").slice(-1)[0].slice(0, 2).toUpperCase())}</div><div><h3>${esc(name)}</h3><p>${esc(user?.email || "Chưa có email")}</p></div></div><div class="user-profile-details">${meta("Vai trò", role)}${meta("Bộ phận", currentDepartment || "Chưa cập nhật")}${meta("Mã tài khoản", user?.uid || "Chế độ demo")}</div>`;
+  $("#userProfileModal").classList.remove("hidden");
+}
 function viewTicket(id) {
   const t = state.tickets.find(x => x.id === id); if (!t) return;
   const steps = t.type === "hardware" ? hardwareSteps : systemSteps;
@@ -1729,7 +1737,7 @@ $("#createTicketBtn").onclick = () => openTicketModal("hardware");
 $("#globalSearch").oninput = e => { state.search = e.target.value; state.employeePage = 1; state.listPages = {}; if (["tickets", "employees", "storeVisits", "systems", "server"].includes(state.page)) render() };
 $("#refreshBtn").onclick = () => { render(); toast("Đã làm mới", "success") };
 $("#mobileMenu").onclick = () => $("#sidebar").classList.toggle("open");
-$("#userMenu").onclick = logout;
+$("#userMenu").onclick = openUserProfileModal;
 $("#logoutBtn").onclick = logout;
 
 $$(".nav-item").forEach(button => button.onclick = () => {

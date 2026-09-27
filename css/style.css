@@ -2101,6 +2101,47 @@ td small {
     width: min(760px, 100%)
 }
 
+.user-profile-modal {
+    width: min(440px, 100%)
+}
+
+.user-profile-content {
+    padding: 20px
+}
+
+.user-profile-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line)
+}
+
+.user-profile-summary .avatar {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    font-size: 13px
+}
+
+.user-profile-summary h3 {
+    margin: 0;
+    font-size: 15px
+}
+
+.user-profile-summary p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 10px
+}
+
+.user-profile-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    margin-top: 16px
+}
+
 #departmentDirectoryModal .modal {
     max-height: calc(100vh - 36px);
     overflow: hidden
