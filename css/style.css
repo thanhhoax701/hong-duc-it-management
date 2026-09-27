@@ -3726,6 +3726,10 @@ td small {
         overflow-x: hidden
     }
 
+    .app-shell.focused-module-page .main {
+        margin-left: 0
+    }
+
     .page,
     .main,
     .card,
