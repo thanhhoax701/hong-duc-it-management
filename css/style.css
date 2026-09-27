@@ -2142,6 +2142,53 @@ td small {
     margin-top: 16px
 }
 
+.change-password-toggle {
+    margin-top: 20px
+}
+
+.change-password-form {
+    display: grid;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line)
+}
+
+.change-password-form h3 {
+    margin: 0 0 4px;
+    font-size: 14px
+}
+
+.change-password-form label {
+    display: grid;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700
+}
+
+.change-password-form input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 11px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    outline: 0
+}
+
+.change-password-form input:focus {
+    border-color: #aebfcb;
+    box-shadow: 0 0 0 3px #eaf0f4
+}
+
+.change-password-form .btn {
+    justify-self: start;
+    margin-top: 3px
+}
+
 #departmentDirectoryModal .modal {
     max-height: calc(100vh - 36px);
     overflow: hidden

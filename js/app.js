@@ -159,7 +159,7 @@ async function loadFirebase() {
       unsubscribers = [];
       if (u) {
         $("#appShell").classList.add("hidden");
-        loadUserRole(fsMod).then(() => { if (isCskh()) { clearCskhRestrictedData(); state.page = "employees"; } showApp(); subscribeData(fsMod) });
+        loadUserRole(fsMod).then(() => { state.showAllEmployees = isCskh(); if (isCskh()) { clearCskhRestrictedData(); state.page = "employees"; } showApp(); subscribeData(fsMod) });
       } else { $("#appShell").classList.add("hidden"); $("#loginScreen").classList.remove("hidden"); }
     });
   } catch (e) {
@@ -843,9 +843,9 @@ function employeesPage() {
     const departmentRows = visibleDepartments.map(({ department, members }) => {
       const visibleMembers = members.filter(employee => pageEmployeeSet.has(employee));
       const memberCountLabel = visibleMembers.length === members.length ? `${members.length} nhân viên` : `${visibleMembers.length}/${members.length} nhân viên trang này`;
-      return `<details class="employee-subgroup" open><summary><span>▸ ${esc(department)}</span><b>${memberCountLabel}</b></summary>${renderEmployeeTable(visibleMembers)}</details>`;
+      return `<details class="employee-subgroup"><summary><span>▸ ${esc(department)}</span><b>${memberCountLabel}</b></summary>${renderEmployeeTable(visibleMembers)}</details>`;
     }).join("");
-    return `<details class="employee-group" open><summary><span>▸ ${esc(workplace)}</span><b>${workplaceCountLabel}</b></summary>${departmentRows}</details>`;
+    return `<details class="employee-group"><summary><span>▸ ${esc(workplace)}</span><b>${workplaceCountLabel}</b></summary>${departmentRows}</details>`;
   }).join("");
   const pageEndIndex = Math.min(pageStartIndex + pageEmployees.length, orderedEmployees.length);
   const firstVisiblePage = Math.max(1, Math.min(state.employeePage - 2, totalPages - 4));
@@ -1387,8 +1387,37 @@ function openUserProfileModal() {
   if (!content) return;
   const name = userName();
   const role = isCskh() ? "CSKH" : currentRole === "it" ? "IT" : currentRole || "Requester";
-  content.innerHTML = `<div class="user-profile-summary"><div class="avatar">${esc(name.split(" ").slice(-1)[0].slice(0, 2).toUpperCase())}</div><div><h3>${esc(name)}</h3><p>${esc(user?.email || "Chưa có email")}</p></div></div><div class="user-profile-details">${meta("Vai trò", role)}${meta("Bộ phận", currentDepartment || "Chưa cập nhật")}${meta("Mã tài khoản", user?.uid || "Chế độ demo")}</div>`;
+  content.innerHTML = `<div class="user-profile-summary"><div class="avatar">${esc(name.split(" ").slice(-1)[0].slice(0, 2).toUpperCase())}</div><div><h3>${esc(name)}</h3><p>${esc(user?.email || "Chưa có email")}</p></div></div><div class="user-profile-details">${meta("Vai trò", role)}${meta("Bộ phận", currentDepartment || "Chưa cập nhật")}${meta("Mã tài khoản", user?.uid || "Chế độ demo")}</div><form id="changePasswordForm" class="change-password-form"><h3>Đổi mật khẩu</h3><label>Mật khẩu hiện tại<input name="currentPassword" type="password" autocomplete="current-password" minlength="6" required></label><label>Mật khẩu mới<input name="newPassword" type="password" autocomplete="new-password" minlength="6" required></label><label>Nhập lại mật khẩu mới<input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" required></label><button class="btn btn-primary" type="submit">Xác nhận đổi mật khẩu</button></form>`;
+  $("#changePasswordForm").onsubmit = changePassword;
   $("#userProfileModal").classList.remove("hidden");
+}
+async function changePassword(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const currentPassword = form.elements.currentPassword.value;
+  const newPassword = form.elements.newPassword.value;
+  if (newPassword !== form.elements.confirmPassword.value) { toast("Mật khẩu mới nhập lại không khớp", "error"); return }
+  if (!firebaseReady || !auth || !user?.email) { toast("Không thể đổi mật khẩu trong chế độ demo", "error"); return }
+  const button = form.querySelector("button[type=submit]");
+  if (button) button.disabled = true;
+  try {
+    const a = await import(`${FBASE}/firebase-auth.js`);
+    const credential = a.EmailAuthProvider.credential(user.email, currentPassword);
+    await a.reauthenticateWithCredential(user, credential);
+    await a.updatePassword(user, newPassword);
+    form.reset();
+    toast("Đổi mật khẩu thành công", "success");
+  } catch (error) {
+    const messages = {
+      "auth/invalid-credential": "Mật khẩu hiện tại không đúng.",
+      "auth/wrong-password": "Mật khẩu hiện tại không đúng.",
+      "auth/weak-password": "Mật khẩu mới cần có ít nhất 6 ký tự.",
+      "auth/requires-recent-login": "Phiên đăng nhập đã cũ. Vui lòng đăng xuất và đăng nhập lại trước khi đổi mật khẩu."
+    };
+    const errorText = String(error?.code || error?.message || "");
+    const messageKey = Object.keys(messages).find(key => errorText.includes(key));
+    toast(messages[messageKey] || `Không thể đổi mật khẩu: ${error.message}`, "error");
+  } finally { if (button) button.disabled = false }
 }
 function viewTicket(id) {
   const t = state.tickets.find(x => x.id === id); if (!t) return;
@@ -1695,7 +1724,9 @@ async function login(e) {
   if (button) button.disabled = true;
   try {
     const a = await import(`${FBASE}/firebase-auth.js`);
-    await a.signInWithEmailAndPassword(auth, $("#loginEmail").value, $("#loginPassword").value);
+    const loginName = $("#loginEmail").value.trim();
+    const email = loginName.includes("@") ? loginName : `${loginName}@hongduchonda.com.vn`;
+    await a.signInWithEmailAndPassword(auth, email, $("#loginPassword").value);
   } catch (err) {
     const messages = {
       "auth/configuration-not-found": "Firebase Authentication chưa được bật. Vào Firebase Console → Authentication → Get started, bật Email/Password và tạo tài khoản người dùng.",
