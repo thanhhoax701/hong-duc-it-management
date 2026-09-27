@@ -3719,3 +3719,143 @@ td small {
         min-width: 900px
     }
 }
+
+@media(max-width:760px) {
+    html,
+    body {
+        overflow-x: hidden
+    }
+
+    .page,
+    .main,
+    .card,
+    .detail-panel {
+        min-width: 0
+    }
+
+    .topbar {
+        flex-wrap: wrap;
+        gap: 10px 12px
+    }
+
+    .topbar>div:nth-child(2) {
+        min-width: 0;
+        flex: 1
+    }
+
+    .top-actions {
+        width: 100%
+    }
+
+    .top-actions .btn {
+        width: 100%
+    }
+
+    .grid-3,
+    .department-office-grid,
+    .system-grid,
+    .tool-grid {
+        grid-template-columns: 1fr
+    }
+
+    .tool-grid {
+        gap: 8px
+    }
+
+    .management-page-actions,
+    .management-home-header,
+    .page-title-row {
+        width: 100%
+    }
+
+    .management-page-actions,
+    .management-home-header {
+        align-items: stretch
+        
+    }
+
+    .management-page-actions .btn,
+    .management-home-header .btn,
+    .employee-page-actions .btn {
+        width: 100%
+    }
+
+    .employee-page-actions {
+        gap: 8px
+    }
+
+    .employee-table {
+        min-width: 760px
+    }
+
+    .table-wrap {
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch
+    }
+
+    .modal-backdrop {
+        place-items: start center;
+        overflow-y: auto;
+        padding: 10px
+    }
+
+    .modal {
+        width: 100%;
+        max-height: calc(100vh - 20px);
+        border-radius: 11px
+    }
+
+    .modal-header {
+        padding: 16px 15px 13px
+    }
+
+    .modal-header h2 {
+        font-size: 15px
+    }
+
+    .modal-footer {
+        flex-wrap: wrap
+        
+    }
+
+    .modal-footer .btn {
+        flex: 1;
+        min-width: 110px
+    }
+
+    #departmentDirectoryContent {
+        padding: 14px 12px 18px
+    }
+
+    .user-profile-details {
+        grid-template-columns: 1fr
+    }
+
+    .login-card {
+        padding: 22px 18px
+    }
+}
+
+@media(max-width:380px) {
+    .page,
+    .topbar {
+        padding-left: 12px;
+        padding-right: 12px
+    }
+
+    .app-shell.focused-module-page .page-title-row {
+        margin-left: -12px;
+        margin-right: -12px;
+        padding-left: 12px;
+        padding-right: 12px
+    }
+
+    .stats,
+    .detail-meta {
+        grid-template-columns: 1fr
+    }
+
+    .login-card {
+        padding: 20px 15px
+    }
+}
