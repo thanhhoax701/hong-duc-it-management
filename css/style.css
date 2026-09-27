@@ -66,6 +66,21 @@ button:disabled {
     padding: 20px 14px
 }
 
+.cskh-mode .sidebar > .brand,
+.cskh-mode .sidebar > .workspace {
+    display: none
+}
+
+.cskh-mode .main-nav {
+    display: none
+}
+
+.cskh-mode .sidebar-bottom {
+    order: -1;
+    width: 100%;
+    margin-top: 0
+}
+
 .brand {
     display: flex;
     align-items: center;
@@ -2086,6 +2101,25 @@ td small {
     width: min(760px, 100%)
 }
 
+#departmentDirectoryModal .modal {
+    max-height: calc(100vh - 36px);
+    overflow: hidden
+}
+
+#departmentDirectoryContent {
+    max-height: calc(100vh - 148px);
+    overflow: auto;
+    padding: 20px 21px 24px
+}
+
+#departmentDirectoryContent .department-office-grid {
+    align-items: start
+}
+
+#departmentDirectoryContent .department-office-card {
+    height: fit-content
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -2332,7 +2366,7 @@ td small {
 }
 
 .brand.large {
-    padding: 0 0 20px
+    padding: 0 0 8px
 }
 
 .brand.large .brand-mark {
@@ -2348,7 +2382,7 @@ td small {
 .login-card form {
     display: grid;
     gap: 13px;
-    margin-top: 20px
+    margin-top: 4px
 }
 
 .login-card label {

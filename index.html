@@ -19,8 +19,6 @@
         <div class="brand-mark">HD</div>
         <div><strong>HỒNG ĐỨC</strong><span>IT MANAGEMENT</span></div>
       </div>
-      <h1>Đăng nhập hệ thống</h1>
-      <p class="muted">Quản lý vấn đề CNTT, tài sản, bảo trì và vận hành hệ thống.</p>
       <form id="loginForm">
         <label>Email<input id="loginEmail" type="email" required placeholder="it@hongduchonda.com.vn"></label>
         <label>Mật khẩu<input id="loginPassword" type="password" required placeholder="••••••••"></label>
@@ -452,6 +450,20 @@
           <button class="btn btn-primary">Lưu</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Department directory modal -->
+  <div class="modal-backdrop hidden" id="departmentDirectoryModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h2>Đơn vị / Phòng ban</h2>
+          <p>Danh sách đơn vị và nhân sự phụ trách.</p>
+        </div>
+        <button class="close-btn" data-close="departmentDirectoryModal" title="Đóng" aria-label="Đóng">×</button>
+      </div>
+      <div id="departmentDirectoryContent"></div>
     </div>
   </div>
 

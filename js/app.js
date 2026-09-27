@@ -5,6 +5,7 @@ const FBASE = "https://www.gstatic.com/firebasejs/10.12.5";
 let firebaseReady = false, auth = null, db = null;
 let firebaseApp = null;
 let user = null;
+let userProfileName = "";
 let state = { page: "hardware", tickets: [], assets: [], departments: [], employees: [], maintenance: [], storeVisits: [], ticketHistory: [], comments: [], notifications: [], approvals: [], backups: [], uptime: [], audit: [], search: "", ticketType: "", ticketPriority: "", employeePage: 1, showAllEmployees: false, listPages: {}, systemFocus: "", systemLevel: "all", systemQuery: "", systemRequestStatus: "" };
 const EMPLOYEE_PAGE_SIZE = 50;
 const LIST_PAGE_SIZE = 20;
@@ -77,6 +78,15 @@ const esc = v => String(v ?? "").replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': 
 const nowText = () => new Date().toLocaleString("vi-VN");
 const uid = () => Math.random().toString(36).slice(2, 10);
 
+function userName() {
+  if (user?.displayName) return user.displayName;
+  if (userProfileName) return userProfileName;
+  const employee = state.employees.find(item => String(item.email || "").toLowerCase() === String(user?.email || "").toLowerCase());
+  if (employee?.name) return employee.name;
+  if (isCskhEmail()) return "CSKH";
+  if (isItEmail()) return "IT Admin";
+  return user?.email?.split("@")[0] || "IT Admin";
+}
 function actorName() { return user?.email || user?.displayName || "demo" }
 function isItEmail(email = user?.email || "") { return /^it(?:[+@])/i.test(String(email).trim()) }
 function isCskhRole(role) { return ["cskh", "customer_service", "customer-service"].includes(String(role || "").trim().toLowerCase()) }
@@ -107,12 +117,14 @@ function checkDueNotifications() {
 async function loadUserRole(fs) {
   currentRole = "requester";
   currentDepartment = "";
+  userProfileName = "";
   if (!user) return;
   try {
     const token = await user.getIdTokenResult();
     const claimedRole = token.claims.role || "";
     const profile = await fs.getDoc(fs.doc(db, "users", user.uid));
     const profileData = profile.exists() ? profile.data() : {};
+    userProfileName = profileData.displayName || profileData.name || profileData.fullName || "";
     const profileRole = profileData.role || "";
     currentDepartment = profileData.department || "";
     currentRole = isCskhRole(claimedRole) || isCskhRole(profileRole) || isCskhEmail()
@@ -147,7 +159,7 @@ async function loadFirebase() {
       unsubscribers = [];
       if (u) {
         $("#appShell").classList.add("hidden");
-        loadUserRole(fsMod).then(() => { if (isCskh()) { clearCskhRestrictedData(); state.page = "management"; } showApp(); subscribeData(fsMod) });
+        loadUserRole(fsMod).then(() => { if (isCskh()) { clearCskhRestrictedData(); state.page = "employees"; } showApp(); subscribeData(fsMod) });
       } else { $("#appShell").classList.add("hidden"); $("#loginScreen").classList.remove("hidden"); }
     });
   } catch (e) {
@@ -178,9 +190,10 @@ function seedDemo() {
 
 function showApp() {
   $("#loginScreen").classList.add("hidden"); $("#appShell").classList.remove("hidden");
-  $("#userName").textContent = user?.displayName || "IT Admin";
+  $("#appShell").classList.toggle("cskh-mode", isCskh());
+  $("#userName").textContent = userName();
   $("#userEmail").textContent = user?.email || (firebaseReady ? "Firebase" : "Chế độ demo");
-  $("#userAvatar").textContent = (user?.displayName || "IT").split(" ").slice(-1)[0].slice(0, 2).toUpperCase();
+  $("#userAvatar").textContent = userName().split(" ").slice(-1)[0].slice(0, 2).toUpperCase();
   updateDepartmentsDatalist(); updateEmployeesDatalist(); render();
 }
 
@@ -839,7 +852,7 @@ function employeesPage() {
   const visiblePages = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstVisiblePage + index);
   const pageControls = state.showAllEmployees ? "" : `<nav class="employee-pagination-controls" aria-label="Phân trang danh sách nhân viên"><button type="button" class="employee-page-button" data-employee-page="first" title="Trang đầu" aria-label="Trang đầu" ${state.employeePage === 1 ? "disabled" : ""}>≪</button><button type="button" class="employee-page-button" data-employee-page="prev" title="Trang trước" aria-label="Trang trước" ${state.employeePage === 1 ? "disabled" : ""}>‹</button>${visiblePages.map(page => `<button type="button" class="employee-page-button${page === state.employeePage ? " active" : ""}" data-employee-page="${page}" aria-label="Trang ${page}" ${page === state.employeePage ? 'aria-current="page"' : ""}>${page}</button>`).join("")}<button type="button" class="employee-page-button" data-employee-page="next" title="Trang sau" aria-label="Trang sau" ${state.employeePage === totalPages ? "disabled" : ""}>›</button><button type="button" class="employee-page-button" data-employee-page="last" title="Trang cuối" aria-label="Trang cuối" ${state.employeePage === totalPages ? "disabled" : ""}>≫</button></nav>`;
   const pagination = orderedEmployees.length ? `<div class="employee-pagination"><div class="employee-pagination-summary"><strong>${pageStartIndex + 1}–${pageEndIndex}</strong><span>trên ${orderedEmployees.length} nhân viên${query ? " phù hợp" : ""}</span></div>${pageControls}</div>` : "";
-  return `<div class="page-title-row management-page-header"><div class="management-page-title"><button class="link-btn" data-back-to-management>← Quay lại</button><h2>Danh sách nhân viên</h2><p>${state.employees.length} nhân viên${query ? ` • ${rows.length} kết quả` : ""}</p></div><div class="employee-page-actions"><label class="employee-search"><span>⌕</span><input id="employeeSearch" value="${esc(state.search)}" placeholder="Tìm tên, mã NV, số điện thoại..."></label><button class="btn btn-light" type="button" data-toggle-all-employees>${state.showAllEmployees ? "Phân trang (50/trang)" : `Hiển thị tất cả (${rows.length})`}</button>${isCskh() ? "" : `<button class="btn btn-light" data-action="delete-all-employees" ${state.employees.length ? "" : "disabled"}>Xóa toàn bộ</button><button class="btn btn-primary" data-action="upload-employees">↑ Tải lên Excel</button>`}</div></div>
+  return `<div class="page-title-row management-page-header"><div class="management-page-title">${isCskh() ? "" : `<button class="link-btn" data-back-to-management>← Quay lại</button>`}<h2>Danh sách nhân viên</h2><p>${state.employees.length} nhân viên${query ? ` • ${rows.length} kết quả` : ""}</p></div><div class="employee-page-actions"><label class="employee-search"><span>⌕</span><input id="employeeSearch" value="${esc(state.search)}" placeholder="Tìm tên, mã NV, số điện thoại..."></label><button class="btn btn-light" type="button" data-open-department-directory>Đơn vị / phòng ban</button><button class="btn btn-light" type="button" data-toggle-all-employees>${state.showAllEmployees ? "Phân trang (50/trang)" : `Hiển thị tất cả (${rows.length})`}</button>${isCskh() ? "" : `<button class="btn btn-light" data-action="delete-all-employees" ${state.employees.length ? "" : "disabled"}>Xóa toàn bộ</button><button class="btn btn-primary" data-action="upload-employees">↑ Tải lên Excel</button>`}</div></div>
  <div class="employee-groups">${groupedRows || `<div class="card"><div class="empty"><strong>Chưa có nhân viên</strong>Hãy tải lên file Excel danh sách nhân viên.</div></div>`}</div>${pagination}`;
 }
 
@@ -945,6 +958,7 @@ function bindPage() {
     render();
     document.querySelector('[data-toggle-all-employees]')?.focus();
   });
+  $$('[data-open-department-directory]').forEach(button => button.onclick = openDepartmentDirectoryModal);
   $$('[data-list-page]').forEach(button => button.onclick = () => {
     const listKey = button.dataset.listPage;
     const currentPage = state.listPages[listKey] || 1;
@@ -1360,6 +1374,13 @@ function openStoreVisitModal(row = null, duplicate = false) {
   $("#storeVisitModal").classList.remove("hidden");
 }
 function openDepartmentModal(department = null) { if (!canManage()) { toast("Tài khoản này chỉ được xem đơn vị / phòng ban", "error"); return } const form = $("#departmentForm"); $("#departmentModal").classList.remove("hidden"); form.reset(); form.elements.id.value = department?.id || ""; form.elements.name.value = department?.name || ""; form.elements.code.value = department?.code || ""; $("#departmentModal h2").textContent = department ? "Chỉnh sửa phòng ban / đơn vị" : "Thêm phòng ban / đơn vị"; setManagerRows(department?.managers?.length ? department.managers : department?.manager ? [{ name: department.manager, title: department.title, employeeCode: department.employeeCode, phone: department.phone }] : []) }
+function openDepartmentDirectoryModal() {
+  const content = $("#departmentDirectoryContent");
+  if (!content) return;
+  content.innerHTML = departmentsPage();
+  content.querySelector(".management-page-header")?.remove();
+  $("#departmentDirectoryModal").classList.remove("hidden");
+}
 function closeModal(id) { $("#" + id)?.classList.add("hidden") }
 function viewTicket(id) {
   const t = state.tickets.find(x => x.id === id); if (!t) return;
